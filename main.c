@@ -25,13 +25,10 @@ typedef struct {
 }Job;
 
 //Function Prototypes
-int display_menu(void** dataStructurePtrs, size_t numOfElements[2]);
-void clrscr();
-int getUserInput();
 void** load_data(void** dataStructurePtrs, size_t numOfElements[2]);
-
-
+int display_menu(void** dataStructurePtrs, size_t numOfElements[2]);
 void save_data(void **dataStructurePtrs, size_t numOfElements[2]);
+void clrscr();
 
 int main() {
 
@@ -47,20 +44,21 @@ int main() {
 
 
     //Menu System
-    int userSelection = 0;
-    while (userSelection != 10){
+    int userSelection = 0;  //A variable to hold the user input
+    while (userSelection != 10){    //Keep doing this until the user inputs the 'exit' code
 
         userSelection = display_menu(dataStructurePtrs, numOfElements);
 
+        //If the user input is not between 1 - 10, then present an error message...
         if(userSelection < 1 || userSelection > 10){
             puts("Invalid Selection - Please try again.");
             printf("%s", "Press [ENTER] to continue...");
-            getchar();
+            getchar();  //Wait for the user to hit [ENTER]
 
-        }
-        clrscr();
+        }//End of if
+        clrscr();   //Clear the screen
 
-    }
+    }//Back to while condition
 
     //User selected Option 10
     //Save data to files and exit....
@@ -69,96 +67,35 @@ int main() {
 
     //Assuming successful completion of program...
     return 0;
-}
 
-void save_data(void **dataStructurePtrs, size_t numOfElements[2]) {
-    Employee **employeeArray = dataStructurePtrs[0];
-    Job **jobArray = dataStructurePtrs[1];
-
-    FILE *outputFilePtr = NULL;//A pointer to my output file.
-    //Check that I can open the file...
-    int retry = 1;
-    while (retry) {
-        if ((outputFilePtr = fopen(EMPLOYEE_FILE, "w")) == NULL) { //If opening fails...
-            int userInput;
-
-            fprintf(stderr, "Error opening output file '%s'.\n", EMPLOYEE_FILE);
-            fprintf(stderr, "%s\n", "Please ensure the file is not open in another program.\n");
-            fprintf(stderr, "%s\n", "This process needs to succeed, or changes made in this session will be lost.");
-            fprintf(stderr, "%s", "Retry [y]es or [n]o :");
-
-            userInput = toupper(getchar());
-            while (fgetc(stdin) != '\n');   //Clear whatever is left of the stdin buffer
-            if(userInput == 78) exit(-1);   //78 is ASCII 'N', So, just exit without saving data.
-
-        }else {
-            retry = 0;
-        }//End of if / else
-    }
-
-    //Continuing if fopen was successful...
-    fprintf(outputFilePtr, "%d", (int)numOfElements[0]);  //Top line of the file is the Number of Employees
-    for (size_t x = 0; x < numOfElements[0]; x++){             //Iterate through the rest of the dataArray...
-        //Send a 'newline' and the next employee record to file
-        fprintf(outputFilePtr, "\n%d %s %s",
-                employeeArray[x]->number, employeeArray[x]->empLastName, employeeArray[x]->empFirstName);
-        // I do it this way so that I'm not left with an empty line at the end of my file.
-    }//End of for
-
-    fclose(outputFilePtr); //Close the file
-
-    /////////////////////////////
-    //Do the same for my Job data
-    /////////////////////////////
-
-    //Check that I can open the file...
-    retry = 1;
-    while (retry) {
-        if ((outputFilePtr = fopen(JOB_FILE, "w")) == NULL) { //If opening fails...
-            int userInput;
-
-            fprintf(stderr, "Error opening output file '%s'.\n", JOB_FILE);
-            fprintf(stderr, "%s\n", "Please ensure the file is not open in another program.\n");
-            fprintf(stderr, "%s\n", "This process needs to succeed, or changes made in this session will be lost.");
-            fprintf(stderr, "%s", "Retry [y]es or [n]o :");
-
-            userInput = toupper(getchar());
-            while (fgetc(stdin) != '\n');   //Clear whatever is left of the stdin buffer
-            if(userInput == 78) exit(-1);   //78 is ASCII 'N', So, just exit without saving data.
-
-        }else {
-            retry = 0;
-        }//End of if / else
-    }
-
-    //Continuing if fopen was successful...
-    fprintf(outputFilePtr, "%d", (int)numOfElements[1]);  //Top line of the file is the Number of Jobs
-    for (size_t x = 0; x < numOfElements[1]; x++){             //Iterate through the rest of the dataArray...
-        //Send a 'newline' and the next employee record to file
-        fprintf(outputFilePtr, "\n%d %d %s %llu %llu",
-                jobArray[x]->empNumber, jobArray[x]->jobNumber, jobArray[x]->customerName,
-                jobArray[x]->dueDate, jobArray[x]->completionDate);
-        // I do it this way so that I'm not left with an empty line at the end of my file.
-    }//End of for
-
-    fclose(outputFilePtr); //Close the file
+}//End of main()
 
 
-}
-
+/**
+ * Function load_data
+ * This function reads in data from my data files, initializes the data structures with
+ * the correct amount of memory and returns a pointer array containing a pointer to each of my data structures.
+ *
+ * @param dataStructurePtrs - An array of pointers, with a pointers to each of my data arrays
+ * @param numOfElements - The number of elements in each array
+ * @return - A pointer to my array of pointers :)
+ */
 void** load_data(void **dataStructurePtrs, size_t numOfElements[2]) {
 
-    FILE *inputFilePtr;
+    FILE *inputFilePtr; //A pointer for the input data file being processed.
+
+    //Bring in a local reference to my data structures...
     Employee **employeeArray = NULL;
     Job **jobArray = NULL;
 
 
-
+    //Initialize my array of pointers, which will hold a pointer to each of my data structures...
     dataStructurePtrs = calloc(2, sizeof(void*));
-    if (!dataStructurePtrs){
+    if (!dataStructurePtrs){    //Check to ensure the memory was allocated successfully
         puts("FATAL ERROR - Insufficient memory for Data. Exiting...");
         exit(-1);
     }
+
     //// Read in data from Employees Data file...
     if ((inputFilePtr = fopen(EMPLOYEE_FILE, "r")) == NULL) {
         puts("No existing Employee Data found. Creating new Employee Data file...");
@@ -190,7 +127,7 @@ void** load_data(void **dataStructurePtrs, size_t numOfElements[2]) {
 
         for (size_t i = 0; i < numOfElements[0]; i++) {   //Iterate for each Employee record...
 
-            //Allocate memory of an Employee struct
+            //Allocate memory for an Employee struct
             employeeArray[i] = calloc(1, sizeof(Employee));
             if (!employeeArray[i]){
                 puts("FATAL ERROR - Insufficient memory for Employee Data. Exiting...");
@@ -219,22 +156,16 @@ void** load_data(void **dataStructurePtrs, size_t numOfElements[2]) {
             }
             strcpy(employeeArray[i]->empFirstName, temp);
 
-        }
-        ////TESTING////
-/*        for (size_t i = 0; i < numOfElements[0]; i++) {   //Iterate for each Employee record...
-            printf("%u\t%s, %s\n", employeeArray[i]->number, employeeArray[i]->empLastName,
-                   employeeArray[i]->empFirstName);
-        }
-*/        ///////////////
+        }//End of for
+        fclose(inputFilePtr);   //Close the file
 
-        fclose(inputFilePtr);
-        dataStructurePtrs[0] = employeeArray;
-    }
+        dataStructurePtrs[0] = employeeArray;   //Save the employeeArray pointer in my pointers array.
+    }//End of if/else
 
     //// Read in data from Jobs Data file...
     if ((inputFilePtr = fopen(JOB_FILE, "r")) == NULL) {
         puts("No existing Job Data found. Creating new Job Data file...");
-        if ((inputFilePtr = fopen(JOB_FILE, "w")) == NULL) {
+        if (NULL == (inputFilePtr = fopen(JOB_FILE, "w"))) {
             puts("FATAL ERROR - Unable to create Job Data file. Exiting...");
             exit(-1);
         }
@@ -261,7 +192,7 @@ void** load_data(void **dataStructurePtrs, size_t numOfElements[2]) {
         }
         for (size_t i = 0; i < numOfElements[1]; i++) {   //Iterate for each Employee record...
 
-            //Allocate memory of an Employee struct
+            //Allocate memory for a Job struct
             jobArray[i] = calloc(1, sizeof(Job));   //int empNumber;
                                                     //int jobNumber;
                                                     //char* customerName;
@@ -298,41 +229,28 @@ void** load_data(void **dataStructurePtrs, size_t numOfElements[2]) {
             fscanf(inputFilePtr, "%s", temp); //Completion Date
             jobArray[i]->completionDate = (time_t)strtoull(temp, NULL, 10);
 
-        }
+        }//End of for
+        fclose(inputFilePtr);   //Close the Jobs file
 
-        ////TESTING////
-        //int empNumber;
-        //int jobNumber;
-        //char* customerName;
-        //time_t dueDate;
-        //time_t completionDate;
-    //    for (size_t i = 0; i < numOfElements[1]; i++) {   //Iterate for each Job record...
-      //      printf("%u\t%u\t%s\t%lu\t%lu\n", jobArray[i]->empNumber, jobArray[i]->jobNumber,
-        //           jobArray[i]->customerName, (unsigned long)jobArray[i]->dueDate, (unsigned long)jobArray[i]->completionDate);
-        //}
-        ///////////////
+        dataStructurePtrs[1] = jobArray;    //Save the jobArray pointer in my pointers array.
 
-        fclose(inputFilePtr);
-        dataStructurePtrs[1] = jobArray;
-    }
-    return dataStructurePtrs;
+    }//End if/else
+    return dataStructurePtrs;   //Return a pointer to the array containing the pointers to my data structures.
 
-}
+}//End of function load_data
 
+/**
+ * Function display_menu
+ * This function displays the menu of options to the user and passes control to other functions based on the user's input.
+ *
+ * @param dataStructurePtrs - Pointers to my data arrays
+ * @param numOfElements - The number of elements in each array
+ * @return - returns the userInput to the main() function. Primarily for error handling.
+ */
 int display_menu(void **dataStructurePtrs, size_t *numOfElements) {
-
+    //Bring in a local reference to my data structures...
     Employee **employeeArray = dataStructurePtrs[0];
     Job **jobArray = dataStructurePtrs[1];
-
-
-/*
-    puts("TESTING ALL");
-
-    for (size_t i = 0; i < numOfElements[1]; i++) {   //Iterate for each Job record...
-        printf("%u\t%u\t%s\t%lu\t%lu\n", jobArray[i]->empNumber, jobArray[i]->jobNumber,
-               jobArray[i]->customerName, (unsigned long)jobArray[i]->dueDate, (unsigned long)jobArray[i]->completionDate);
-    }
-*/
 
     //time_t now = time(NULL);
     //printf("TESTING %lu\n", (unsigned long)now);
@@ -353,7 +271,7 @@ int display_menu(void **dataStructurePtrs, size_t *numOfElements) {
 
     puts("10. Exit");
 
-    printf("%s", "Please make a selection :");
+    printf("\n%s", "Please make a selection :");
     int userInput;
     scanf("%d", &userInput);
     while (fgetc(stdin) != '\n'); //Clear whatever is left of the stdin buffer
@@ -423,30 +341,102 @@ int display_menu(void **dataStructurePtrs, size_t *numOfElements) {
         }
 
         default: {
+            //If the user enters anything that is not 1 - 9...
+            //Do nothing. I let the main() function handle this eventuality
             break;
         }
     }
 
     return userInput;
-}
-
-int getUserInput() {
-
-    int myInt;
-    int result = scanf("%d", &myInt);
-
-    if (result == EOF) {
-        /* ... you're not going to get any input ... */
-    }
-    if (result == 0) {
-        while (fgetc(stdin) != '\n') // Read until a newline is found
-            ;
-    }
+}//End of function display_menu
 
 
-    return myInt;
-}
+/**
+ * Function save_data
+ * This function writes the content of my data arrays to the employee and job files.
+ *
+ * @param dataStructurePtrs - Pointers to my data arrays
+ * @param numOfElements - The number of elements in each array
+ */
+void save_data(void **dataStructurePtrs, size_t numOfElements[2]) {
+    //Bring in a local reference to my data structures...
+    Employee **employeeArray = dataStructurePtrs[0];
+    Job **jobArray = dataStructurePtrs[1];
 
+    FILE *outputFilePtr = NULL;//A pointer to my output file.
+    //Check that I can open the file...
+    int retry = 1;
+    while (retry) {
+        if ((outputFilePtr = fopen(EMPLOYEE_FILE, "w")) == NULL) { //If opening fails...
+            int userInput;
+
+            fprintf(stderr, "Error opening output file '%s'.\n", EMPLOYEE_FILE);
+            fprintf(stderr, "%s\n", "Please ensure the file is not open in another program.\n");
+            fprintf(stderr, "%s\n", "This process needs to succeed, or changes made in this session will be lost.");
+            fprintf(stderr, "%s", "Retry [y]es or [n]o :");
+
+            userInput = toupper(getchar());
+            while (fgetc(stdin) != '\n');   //Clear whatever is left of the stdin buffer
+            if(userInput == 78) exit(-1);   //78 is ASCII 'N', So, just exit without saving data.
+
+        }else {
+            retry = 0;
+        }//End of if / else
+    }//Back to while condition
+
+    //Continuing if fopen was successful...
+    fprintf(outputFilePtr, "%d", (int)numOfElements[0]);  //Top line of the file is the Number of Employees
+    for (size_t x = 0; x < numOfElements[0]; x++){             //Iterate through the rest of the dataArray...
+        //Send a 'newline' and the next employee record to file
+        fprintf(outputFilePtr, "\n%d %s %s",
+                employeeArray[x]->number, employeeArray[x]->empLastName, employeeArray[x]->empFirstName);
+        // I do it this way so that I'm not left with an empty line at the end of my file.
+    }//End of for
+
+    fclose(outputFilePtr); //Close the file
+
+    /////////////////////////////
+    //Do the same for my Job data
+    /////////////////////////////
+
+    //Check that I can open the file...
+    retry = 1;
+    while (retry) {
+        if ((outputFilePtr = fopen(JOB_FILE, "w")) == NULL) { //If opening fails...
+            int userInput;
+
+            fprintf(stderr, "Error opening output file '%s'.\n", JOB_FILE);
+            fprintf(stderr, "%s\n", "Please ensure the file is not open in another program.\n");
+            fprintf(stderr, "%s\n", "This process needs to succeed, or changes made in this session will be lost.");
+            fprintf(stderr, "%s", "Retry [y]es or [n]o :");
+
+            userInput = toupper(getchar());
+            while (fgetc(stdin) != '\n');   //Clear whatever is left of the stdin buffer
+            if(userInput == 78) exit(-1);   //78 is ASCII 'N', So, just exit without saving data.
+
+        }else {
+            retry = 0;
+        }//End of if / else
+    }//Back to while condition
+
+    //Continuing if fopen was successful...
+    fprintf(outputFilePtr, "%d", (int)numOfElements[1]);  //Top line of the file is the Number of Jobs
+    for (size_t x = 0; x < numOfElements[1]; x++){             //Iterate through the rest of the dataArray...
+        //Send a 'newline' and the next employee record to file
+        fprintf(outputFilePtr, "\n%d %d %s %llu %llu",
+                jobArray[x]->empNumber, jobArray[x]->jobNumber, jobArray[x]->customerName,
+                jobArray[x]->dueDate, jobArray[x]->completionDate);
+        // I do it this way so that I'm not left with an empty line at the end of my file.
+    }//End of for
+
+    fclose(outputFilePtr); //Close the file
+
+}//End of function save_data
+
+/**
+ * Function clrscr
+ * This function simply clears the content of the console window
+ */
 void clrscr(){
     system("@cls||clear");
-}
+}//End of function clrscr
