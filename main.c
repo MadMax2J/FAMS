@@ -29,9 +29,22 @@ void** load_data(void** dataStructurePtrs, size_t numOfElements[2]);
 int display_menu(void** dataStructurePtrs, size_t numOfElements[2]);
 void save_data(void **dataStructurePtrs, size_t numOfElements[2]);
 void clrscr();
+void pressEnterToContinue();
+
+Employee **addEmployee(Employee **employeeArray, size_t *numOfElements);
+Job **addJob(Job **jobArray, Employee **employeeArray, size_t *numOfElements);
+
+void listEmployees(Employee **employeeArray, size_t *numOfElements);
+
+time_t getDateTimeFromUser();
+
+char *getEmployeeName(Employee **employeeArray, size_t *numOfElements, int employeeIdToFind);
 
 int main() {
-
+    //getDateTimeFromUser();
+    ///puts("TEST COMPLETE - QUIT PLEASE");
+    //return(0);
+    //pressEnterToContinue();
     void** dataStructurePtrs = {NULL};  //A pointer to an array of pointers, storing the locations of my data structures
                                         //dataStructurePtrs[0] will store the address of the employeeArray
                                         //dataStructurePtrs[1] will store the address of the jobArray
@@ -278,25 +291,41 @@ int display_menu(void **dataStructurePtrs, size_t *numOfElements) {
 
     switch (userInput){
         case 1:{
-            puts("Item 1");
-            printf("%s", "Press [ENTER] to continue...");
-            getchar();
+            clrscr();
+            puts("########################");
+            puts("### Add New Employee ###");
+            puts("########################\n");
+
+            employeeArray = addEmployee(employeeArray, numOfElements);
+            dataStructurePtrs[0] = employeeArray;
+            puts("");
+
+            pressEnterToContinue();
             break;
         }
         case 2:{
-            puts("Item 2");
-            printf("%s", "Press [ENTER] to continue...");
-            getchar();
+            clrscr();
+            puts("###################");
+            puts("### Add New Job ###");
+            puts("###################\n");
+
+            jobArray = addJob(jobArray, employeeArray, numOfElements);
+            dataStructurePtrs[1] = jobArray;
+            puts("");
+
+            pressEnterToContinue();
             break;
         }
         case 3:{
-            puts("Item 3");
-            for (size_t i = 0; i < numOfElements[0]; i++) {   //Iterate for each Employee record...
-                printf("%u\t%s, %s\n", employeeArray[i]->number, employeeArray[i]->empLastName,
-                       employeeArray[i]->empFirstName);
-            }
-            printf("%s", "Press [ENTER] to continue...");
-            getchar();
+            clrscr();
+            puts("#####################");
+            puts("### Employee List ###");
+            puts("#####################\n");
+
+            listEmployees(employeeArray, numOfElements);
+            puts("");
+
+            pressEnterToContinue();
             break;
         }
         case 4:{
@@ -348,8 +377,354 @@ int display_menu(void **dataStructurePtrs, size_t *numOfElements) {
     }
 
     return userInput;
-}//End of function display_menu
+}
 
+/**
+ * Function listEmployees
+ * This function outputs a list of employees, in a tabular format
+ *
+ * @param employeeArray - The employeeArray data structure
+ * @param numOfElements - The size_t array holding the number of elements in each array. We're interested in index[0].
+ */
+void listEmployees(Employee **employeeArray, size_t *numOfElements) {
+    printf("%8s\n", "Employee");
+    printf("%8s    %-20s\n", "Number", "Employee Name");
+    printf("%8s    %-20s\n", "********", "********************");
+    //Harrison, George
+    char displayName[21] = "";
+    for (size_t i = 0; i < numOfElements[0]; i++) {   //Iterate for each Employee record...
+        strcpy(displayName, employeeArray[i]->empLastName);
+        strcat(displayName, ", ");
+        strcat(displayName, employeeArray[i]->empFirstName);
+        printf("%8u    %-20s\n", employeeArray[i]->number, displayName);
+    }
+
+}
+
+/**
+ * Function addEmployee
+ * This function adds an employee to the employeeArray data structure. But before it can do that, we need to increase
+ * the memory allocated to the employeeArray. We'll reallocate a sufficient block of memory to the employeeArray, then
+ * allocate memory for the Employee struct and then to the strings within the struct.
+ *
+ * @param employeeArray - The current employeeArray data structure
+ * @param numOfElements - The size_t array holding the number of elements in each array. We're interested in index[0].
+ * @return - A pointer to the location of the employeeArray, as this might change during the course of this function.
+ */
+Employee **addEmployee(Employee **employeeArray, size_t *numOfElements) {
+
+    //Format of Employee record...
+    //int empID
+    //char* empFName
+    //char* empLName
+
+    //Increment the employee counter and attempt to reallocate sufficient memory for the additional employee...
+    Employee** originalEmployeeArrayAddress = employeeArray; //Just in-case I need to roll back.
+    employeeArray = realloc(employeeArray, ++numOfElements[0] * sizeof(Employee*));
+    if(employeeArray == NULL){
+        //Reallocation Fail...
+        puts("ERROR - Insufficient memory for new Employee. Cancelling...");
+        --numOfElements[0];
+        employeeArray = originalEmployeeArrayAddress;
+        return employeeArray;
+
+    }//End if
+    //Allocation of new memory for additional Employee*, successful...
+
+    //Allocate memory for the new Employee struct and save the
+    // pointer in the new, last element of the employee pointer array.
+    employeeArray[numOfElements[0] - 1] = calloc(1, sizeof(Employee));
+    if(!(employeeArray[numOfElements[0] - 1])){
+        puts("ERROR - Insufficient memory for new Employee. Cancelling...");
+
+        //Return employeeArray to its original size and return it...
+        employeeArray = realloc(employeeArray, --numOfElements[0] * sizeof(Employee*)); //No reason to think this might fail.
+        return employeeArray;
+    }//End of if
+
+    //Allocation of new memory for additional Employee struct, successful...
+    printf("Employee Number :%u\n", (unsigned int)numOfElements[0]);
+    employeeArray[numOfElements[0] - 1]->number = (unsigned int)numOfElements[0];
+
+    char userInput[30] = "";
+    printf("\n%s", "Employee First Name :");
+    scanf("%s", userInput);
+    while (fgetc(stdin) != '\n'); //Clear whatever is left of the stdin buffer
+    employeeArray[numOfElements[0] - 1]->empFirstName = calloc(strlen(userInput) + 1, sizeof(char));
+    strcpy(employeeArray[numOfElements[0] - 1]->empFirstName, userInput);
+
+    printf("%s", "Employee Last Name  :");
+    scanf("%s", userInput);
+    while (fgetc(stdin) != '\n'); //Clear whatever is left of the stdin buffer
+    employeeArray[numOfElements[0] - 1]->empLastName = calloc(strlen(userInput) + 1, sizeof(char));
+    strcpy(employeeArray[numOfElements[0] - 1]->empLastName, userInput);
+
+    puts("\n\nNew Employee Added...\n");
+
+    printf("%8s\n", "Employee");
+    printf("%8s    %-20s\n", "Number", "Employee Name");
+    printf("%8s    %-20s\n", "********", "********************");
+
+    char displayName[21] = "";
+    strcpy(displayName, employeeArray[numOfElements[0] - 1]->empLastName);
+    strcat(displayName, ", ");
+    strcat(displayName, employeeArray[numOfElements[0] - 1]->empFirstName);
+
+    printf("%8u    %-20s\n", employeeArray[numOfElements[0] - 1]->number, displayName);
+
+    return employeeArray; //Return the potentially updated employeeArray pointer
+}//End of function addEmployee
+
+/**
+ * Function addJob
+ * This function adds a Job to the jobArray data structure. But before it can do that, we need to increase
+ * the memory allocated to the jobArray. We'll reallocate a sufficient block of memory to the jobArray, then
+ * allocate memory for the new Job struct and then to the string within the struct.
+ *
+ * @param jobArray - The current jobArray data structure
+ * @param numOfElements - The size_t array holding the number of elements in each array. We're interested in index[1].
+ * @return - A pointer to the location of the jobArray, as this might change during the course of this function.
+ */
+Job **addJob(Job **jobArray, Employee **employeeArray, size_t *numOfElements) {
+
+    //Format of Job record...
+    //int empID
+    //int jobID
+    //char* customerName
+    //time_t dueDateTime
+    //time_t completionDateTime
+
+    //Increment the employee counter and attempt to reallocate sufficient memory for the additional employee...
+    Job** originalJobArrayAddress = jobArray; //Just in-case I need to roll back.
+    jobArray = realloc(jobArray, ++numOfElements[1] * sizeof(Job*));
+    if(jobArray == NULL){
+        //Reallocation Fail...
+        puts("ERROR - Insufficient memory for new Job. Cancelling...");
+        --numOfElements[1];
+        jobArray = originalJobArrayAddress;
+        return jobArray;
+
+
+    }//End if
+    //Allocation of new memory for additional Job*, successful...
+
+    //Allocate memory for the new Job struct and save the
+    // pointer in the new, last element of the employee pointer array.
+    jobArray[numOfElements[1] - 1] = calloc(1, sizeof(Job));
+    if(!(jobArray[numOfElements[1] - 1])){
+        puts("ERROR - Insufficient memory for new Job. Cancelling...");
+
+        //Return jobArray to its original size and return it...
+        jobArray = realloc(jobArray, --numOfElements[1] * sizeof(Job*)); //No reason to think this might fail.
+        return jobArray;
+    }//End of if
+
+    //Allocation of new memory for additional Job struct, successful...
+    printf("Job Number :%u\n", (unsigned int)numOfElements[1]);
+    jobArray[numOfElements[1] - 1]->jobNumber = (unsigned int)numOfElements[1];
+
+    char userInput[30] = "";    //User Input buffer
+
+    int userInputEmployeeNumber = 0;
+    while (userInputEmployeeNumber < 1 || userInputEmployeeNumber > numOfElements[0]){
+        puts("\nWhich employee is assigned to this job ...\n");
+        listEmployees(employeeArray, numOfElements);    //List available employees
+
+        printf("\n%s", "Employee Number :");
+        scanf("%s", userInput);
+        while (fgetc(stdin) != '\n'); //Clear whatever is left of the stdin buffer
+        userInputEmployeeNumber = (int)strtoul(userInput, NULL, 10);
+
+        if(userInputEmployeeNumber < 1 || userInputEmployeeNumber > numOfElements[0]){
+            puts("\nError - This is not a valid or active Employee Number. Try again...");
+            pressEnterToContinue();
+        }//End of if
+    }//Back to while condition
+    //Valid Employee number selected
+    jobArray[numOfElements[1] - 1]->empNumber = userInputEmployeeNumber;
+
+
+    printf("%s", "Customer's name :");
+    scanf("%s", userInput);    //Get all of the String - might include Spaces!! Need to test this //ToDo
+    while (fgetc(stdin) != '\n'); //Clear whatever is left of the stdin buffer
+    jobArray[numOfElements[1] - 1]->customerName = calloc(strlen(userInput) + 1, sizeof(char));
+    strcpy(jobArray[numOfElements[1] - 1]->customerName, userInput);
+
+
+    time_t currentTime = 0;
+    time_t proposedDateTime;
+    do {
+        puts("\nPlease enter due date and time...");
+        proposedDateTime = getDateTimeFromUser();
+        currentTime = time(NULL);
+
+        if (difftime(proposedDateTime, currentTime) < 0) {
+            puts("This Date / Time is in the Past! Please try again...");
+        }
+    }while(difftime(proposedDateTime, currentTime) < 0);
+    //Valid future Due Date
+    jobArray[numOfElements[1] - 1]->dueDate = proposedDateTime; //Assign Due Date to Job Struct
+
+    //Set completion date to ZERO for the moment...
+    jobArray[numOfElements[1] - 1]->completionDate = 0;
+
+
+    //display Summary...
+    //Generate a readable date / time in the format "Thu Apr 20, 2017 @ 12:00"
+    char *engDueDate = calloc(27, sizeof(char));
+    strftime(engDueDate, 26, "%a %b %d, %Y @ %H:%M", localtime(&jobArray[numOfElements[1] - 1]->dueDate));
+
+    puts("\n\nNew Job Added...\n");
+
+    printf("%10s%20s%17s%28s\n", "Job Number", "Assigned Employee", "Customer Name", "Due Date / Time");
+    printf("%10s%20s%17s%28s\n", "**********", "*****************", "*************", "************************");
+    printf("%10d%20s%17s%28s\n", jobArray[numOfElements[1] - 1]->jobNumber,
+                               getEmployeeName(employeeArray, numOfElements, jobArray[numOfElements[1] - 1]->empNumber),
+                               jobArray[numOfElements[1] - 1]->customerName,
+                               engDueDate);
+
+    return jobArray;
+}
+
+/**
+ * Function getEmployeeName
+ * This function returns a char* containing the full name of the employeeIdToFind
+ *
+ * @param employeeArray - The employeeArray data structure.
+ * @param numOfElements - The size_t array holding the number of elements in each array. We're interested in index[0].
+ * @param employeeIdToFind - The employeeId of the employee we're interested in.
+ * @return - a char* containing the full name of the employee.
+ */
+char *getEmployeeName(Employee **employeeArray, size_t *numOfElements, int employeeIdToFind) {
+//    printf("TESTING - Looking for employee number %d.", employeeIdToFind);
+
+    char *returnName;
+    size_t targetIndex = numOfElements[0];  //Valid size_t, but out of scope!
+
+    for(size_t index = 0; index < numOfElements[0]; index++){
+        if(employeeArray[index]->number == employeeIdToFind){
+            targetIndex = index;
+        }
+    }
+
+    if(targetIndex == numOfElements[0]){ //targetIndex was not changed, so No Match Found
+        returnName = "Employee Not Found!";
+
+    }else {
+
+        //Allocate memory for the concatenated Employee name with extra space for ', ' and NULL
+        returnName = calloc(
+                strlen(employeeArray[targetIndex]->empLastName) + strlen(employeeArray[targetIndex]->empFirstName) + 3,
+                sizeof(char));
+
+        strcpy(returnName, employeeArray[targetIndex]->empLastName);
+        strcat(returnName, ", ");
+        strcat(returnName, employeeArray[targetIndex]->empFirstName);
+    }
+
+    return returnName;
+}
+
+/**
+ * Function getDateTimeFromUser
+ * This function asks the users for the year, month, day, hour and half-hour, and returns an appropriate time_t representation.
+ *
+ * @return - a time_t representation of the user input date and time.
+ */
+time_t getDateTimeFromUser() {
+    //Get Due Year
+    //Get Due Month
+    //Get Due Day
+    //Get Due Hour
+    //Get Due Minute (in 30min chunks)
+    char *month[] = {"Spacer", "January", "February", "March", "April", "May", "June",
+                   "July", "August", "September", "October", "November", "December"};
+
+    time_t proposedDateTime = 0;
+
+    //Resolve Year
+    int proposedYear = 0;
+    do {
+        printf("%s", "Year (YYYY) :");
+        scanf("%d", &proposedYear);
+        while (fgetc(stdin) != '\n'); //Clear whatever is left of the stdin buffer
+        if (proposedYear < 1900 || proposedYear > 2037) {
+            puts("This year is out of range!");
+        }
+        //Year 2038 problem?? 2 digit entry?? Todo
+    } while (proposedYear < 1900 || proposedYear > 2037);
+
+    //Resolve Month
+    int proposedMonth = -1;
+    do {
+        printf("%s", "Month (1 - 12) :");
+        scanf("%d", &proposedMonth);
+        while (fgetc(stdin) != '\n'); //Clear whatever is left of the stdin buffer
+        if (proposedMonth < 1 || proposedMonth > 12) {
+            puts("This month is out of range!");
+        }
+    } while (proposedMonth < 1 || proposedMonth > 12);
+
+    //Resolve Day
+    int proposedDay = -1;
+    int validMaxDay = (proposedMonth == 2 ?
+                       (proposedYear % 4 ? 28 : (proposedYear % 100 ? 29 : (proposedYear % 400 ? 28 : 29))) :
+                       ((proposedMonth - 1) % 7 % 2 ? 30 : 31)); //From Week2 Discussion! :)
+    do {
+        printf("Day (1 - %d) :", validMaxDay);
+        scanf("%d", &proposedDay);
+        while (fgetc(stdin) != '\n'); //Clear whatever is left of the stdin buffer
+        if (proposedDay < 1) {
+            puts("This day is out of range!");
+        } else if (proposedDay > validMaxDay) {
+            if(proposedMonth == 2) { //February
+                printf("The month of %s in the year %d, does not have %d days!\n", month[proposedMonth],
+                       proposedYear, proposedDay);
+            }else{  //Any other month
+                printf("The month of %s, does not have %d days!\n", month[proposedMonth], proposedDay);
+            }
+        }
+    } while (proposedDay < 1 || proposedDay > validMaxDay);
+
+    //Resolve Hour
+    int proposedHour = -1;
+    do {
+        printf("%s", "Hour (0 - 23) :");
+        scanf("%d", &proposedHour);
+        while (fgetc(stdin) != '\n'); //Clear whatever is left of the stdin buffer
+        if (proposedHour < 0 || proposedHour > 23) {
+            puts("This hour is out of range!");
+        }
+    } while (proposedHour < 0 || proposedHour > 23);
+
+    //Resolve Minute
+    int proposedMinute = -1;
+    do {
+        printf("%s", "Minute - Half hour interval(0 or 30) :");
+        scanf("%d", &proposedMinute);
+        while (fgetc(stdin) != '\n'); //Clear whatever is left of the stdin buffer
+        if (proposedMinute != 0 && proposedMinute != 30) {
+            puts("This is not a Half hour interval!");
+        }
+    } while (proposedMinute != 0 && proposedMinute != 30);
+
+    struct tm proposedTimeStruct;
+    proposedTimeStruct.tm_year = proposedYear - 1900;
+    proposedTimeStruct.tm_mon = proposedMonth - 1; //April
+    proposedTimeStruct.tm_mday = proposedDay;
+    proposedTimeStruct.tm_hour = proposedHour;
+    proposedTimeStruct.tm_min = proposedMinute;
+
+    proposedTimeStruct.tm_isdst = -1;
+    proposedTimeStruct.tm_sec = 0;
+    proposedTimeStruct.tm_wday = -1;
+    proposedTimeStruct.tm_yday = -1;
+
+    proposedDateTime = mktime(&proposedTimeStruct);
+
+    return proposedDateTime;
+
+}//End of function getDateTimeFromUser
 
 /**
  * Function save_data
@@ -440,3 +815,12 @@ void save_data(void **dataStructurePtrs, size_t numOfElements[2]) {
 void clrscr(){
     system("@cls||clear");
 }//End of function clrscr
+
+/**
+ * Function pressEnterToContinue
+ * This function simply pauses the execution of the program, until the user hits the [ENTER] key.
+ */
+void pressEnterToContinue(){
+    printf("%s", "Press [ENTER] to continue...");
+    getchar();
+}//End of function pressEnterToContinue
