@@ -40,16 +40,17 @@ int jobSubMenu(void **dataStructurePtrs, size_t *numOfElements);
 Employee **addEmployee(Employee **employeeArray, size_t *numOfElements);
 void listEmployees(Employee **employeeArray, size_t *numOfElements);
 void employeeBubbleSort(Employee **unsortedArray, size_t arraySize, int sortType);
+char *getEmployeeName(Employee **employeeArray, size_t numOfElements, int employeeIdToFind);
+void findEmployeeByNumber(Employee **employeeArray, size_t numOfElements);
 
 //Job Functions...
 Job **addJob(Job **jobArray, Employee **employeeArray, size_t *numOfElements);
-void listJobs(Employee **employeeArray, Job **jobArray, size_t *numOfElements);
+void listJobs(Employee **employeeArray, Job **jobArray, size_t *numOfElements, int boolIncComplete);
+void completeJob(Employee **employeeArray, Job **jobArray, size_t *numOfElements);
 void jobBubbleSort(Job **unsortedArray, size_t arraySize, int sortType);
 
 //Utility Functions...
 time_t getDateTimeFromUser();
-char *getEmployeeName(Employee **employeeArray, size_t numOfElements, int employeeIdToFind);
-void findEmployeeByNumber(Employee **employeeArray, size_t numOfElements);
 void clrscr();
 void pressEnterToContinue();
 //// End of Function Prototypes ////
@@ -315,9 +316,9 @@ void save_data(void **dataStructurePtrs, size_t numOfElements[2]) {
 
     fclose(outputFilePtr); //Close the file
 
-    /////////////////////////////
-    //Do the same for my Job data
-    /////////////////////////////
+
+    //// Do the same for my Job data
+
 
     //Check that I can open the file...
     retry = 1;
@@ -594,8 +595,8 @@ int jobSubMenu(void **dataStructurePtrs, size_t *numOfElements){
             puts("### Outstanding Jobs to be completed by {date} ###");
             puts("##################################################\n");
 
-            //ToDo ADD FUNCTION
-
+            jobBubbleSort(jobArray, numOfElements[1], 4);
+            listJobs(employeeArray, jobArray, numOfElements, 0);
             puts("");
 
             pressEnterToContinue();
@@ -609,7 +610,7 @@ int jobSubMenu(void **dataStructurePtrs, size_t *numOfElements){
             puts("#################################\n");
 
             jobBubbleSort(jobArray, numOfElements[1], 3);
-            listJobs(employeeArray, jobArray, numOfElements);
+            listJobs(employeeArray, jobArray, numOfElements, 1);
             puts("");
 
             pressEnterToContinue();
@@ -623,7 +624,7 @@ int jobSubMenu(void **dataStructurePtrs, size_t *numOfElements){
             puts("###################################\n");
 
             jobBubbleSort(jobArray, numOfElements[1], 4);
-            listJobs(employeeArray, jobArray, numOfElements);
+            listJobs(employeeArray, jobArray, numOfElements, 1);
             puts("");
 
             pressEnterToContinue();
@@ -636,8 +637,7 @@ int jobSubMenu(void **dataStructurePtrs, size_t *numOfElements){
             puts("### Set Job as 'Completed' ###");
             puts("##############################\n");
 
-            //ToDo ADD FUNCTION
-
+            completeJob(employeeArray, jobArray, numOfElements);
             puts("");
 
             pressEnterToContinue();
@@ -846,6 +846,104 @@ void employeeBubbleSort(Employee **unsortedArray, size_t arraySize, int sortType
     //       (double) (finishTime - startTime) / CLOCKS_PER_SEC, swapCount, comparisonCount);
 
 }//End of function employeeBubbleSort
+
+/**
+ * Function getEmployeeName
+ * This function returns a char* containing the full name of the employeeIdToFind
+ *
+ * @param employeeArray - The employeeArray data structure.
+ * @param numOfElements - The size_t array holding the number of elements in each array. We're interested in index[0].
+ * @param employeeIdToFind - The employeeId of the employee we're interested in.
+ * @return - a char* containing the full name of the employee.
+ */
+char *getEmployeeName(Employee **employeeArray, size_t numOfElements, int employeeIdToFind) {
+//    printf("TESTING - Looking for employee number %d.", employeeIdToFind);
+
+    char *returnName;
+    size_t targetIndex = numOfElements;  //Valid size_t, but out of scope!
+
+    for(size_t index = 0; index < numOfElements; index++){
+        if(employeeArray[index]->number == employeeIdToFind){
+            targetIndex = index;
+        }
+    }
+
+    if(targetIndex == numOfElements){ //targetIndex was not changed, so No Match Found
+        returnName = "Employee Not Found!";
+
+    }else {
+
+        //Allocate memory for the concatenated Employee name with extra space for ', ' and NULL
+        returnName = calloc(
+                strlen(employeeArray[targetIndex]->empLastName) + strlen(employeeArray[targetIndex]->empFirstName) + 3,
+                sizeof(char));
+
+        strcpy(returnName, employeeArray[targetIndex]->empLastName);
+        strcat(returnName, ", ");
+        strcat(returnName, employeeArray[targetIndex]->empFirstName);
+    }
+
+    return returnName;
+}//End of function getEmployeeName
+
+/**
+ * Function getEmployeeName
+ * This function returns a char* containing the full name of the employeeIdToFind
+ *
+ * @param employeeArray - The employeeArray data structure.
+ * @param numOfElements - The size_t array holding the number of elements in each array. We're interested in index[0].
+ * @param employeeIdToFind - The employeeId of the employee we're interested in.
+ * @return - a char* containing the full name of the employee.
+ */
+void findEmployeeByNumber(Employee **employeeArray, size_t numOfElements) {
+
+    int employeeIdToFind;
+    do {
+        printf("Employee ID to find (1 - %d):", (int) numOfElements);
+        scanf("%d", &employeeIdToFind);
+        while (fgetc(stdin) != '\n'); //Clear whatever is left of the stdin buffer
+
+        if (employeeIdToFind < 1 || employeeIdToFind > numOfElements) {
+            puts("\nThis is not a valid or active Employee number!");
+        }
+    }while(employeeIdToFind < 1 || employeeIdToFind > numOfElements);
+
+
+    //char *returnName;
+    size_t targetIndex = numOfElements;  //Valid size_t, but out of scope!
+
+    for(size_t index = 0; index < numOfElements; index++){
+        if(employeeArray[index]->number == employeeIdToFind){
+            targetIndex = index;
+        }
+    }
+
+    if(targetIndex == numOfElements){ //targetIndex was not changed, so No Match Found
+        puts("Employee Not Found!");
+
+    }else {
+
+        puts("\n\nEmployee Found...\n");
+
+        printf("%8s\n", "Employee");
+        printf("%8s    %-20s\n", "Number", "Employee Name");
+        printf("%8s    %-20s\n", "********", "********************");
+
+        char *displayName = calloc(
+                strlen(employeeArray[targetIndex]->empLastName) + strlen(employeeArray[targetIndex]->empFirstName) + 3,
+                sizeof(char));
+        strcpy(displayName, employeeArray[targetIndex]->empLastName);
+        strcat(displayName, ", ");
+        strcat(displayName, employeeArray[targetIndex]->empFirstName);
+
+        printf("%8u    %-20s\n", employeeArray[targetIndex]->number, displayName);
+
+
+    }
+
+    //return returnName;
+}//End of function getEmployeeName
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
@@ -977,44 +1075,154 @@ Job **addJob(Job **jobArray, Employee **employeeArray, size_t *numOfElements) {
  * @param jobArray - The jobArray data structure
  * @param numOfElements - The size_t array holding the number of elements in each array.
  */
-void listJobs(Employee **employeeArray, Job **jobArray, size_t *numOfElements) {
+void listJobs(Employee **employeeArray, Job **jobArray, size_t *numOfElements, int boolIncComplete) {
     size_t index;
     char *employeeDisplayName;
     char *engDueDate = calloc(27, sizeof(char)); //"Apr 20, 2017 @12:00" + NULL
     char *engCompleteDate = calloc(19, sizeof(char)); //"Thu Apr 20, 2017" + NULL
 
-    printf("%6s%15s%19s%21s%18s\n", "Job  ", "Customer  ", "Employee    ", "Due          ", "Completed    ");
-    printf("%6s%15s%19s%21s%18s\n", "Number", "Name    ", "Name      ", "Date and Time   ", "Date      ");
-    printf("%6s%15s%19s%21s%18s\n", "******", "*************", "*****************", "*******************", "****************");
+    if(boolIncComplete) {
+        printf("%6s%15s%19s%21s%18s\n", "Job  ", "Customer  ", "Employee    ", "Due          ", "Completed    ");
+        printf("%6s%15s%19s%21s%18s\n", "Number", "Name    ", "Name      ", "Date and Time   ", "Date      ");
+        printf("%6s%15s%19s%21s%18s\n", "******", "*************", "*****************", "*******************",
+               "****************");
+    }else{
+        printf("%6s%15s%19s%21s\n", "Job  ", "Customer  ", "Employee    ", "Due          ");
+        printf("%6s%15s%19s%21s\n", "Number", "Name    ", "Name      ", "Date and Time   ");
+        printf("%6s%15s%19s%21s\n", "******", "*************", "*****************", "*******************");
+    }
 
+    int boolSkip;
+    int count;
     for (index = 0; index < numOfElements[1]; index++) {   //Iterate for each Job record...
-
-        employeeDisplayName = getEmployeeName(employeeArray, numOfElements[0], jobArray[index]->empNumber);
-
-        //Generate a readable date / time in the format "Thu Apr 20, 2017 @ 12:00"
-        //printf("\nTESTING ### %lu\n", (unsigned long)jobArray[index]->dueDate);
-        strftime(engDueDate, 26, "%b %d, %Y @%H:%M", localtime(&jobArray[index]->dueDate));
-        //printf("\nTESTING ### %s\n", engDueDate);
+        boolSkip = 0;
+        count = 0;
         if (jobArray[index]->completionDate == 0){
             strcpy(engCompleteDate, "In progress...");
         }else {
+            boolSkip = 1;
             //Generate a readable date / time in the format "Thu Apr 20, 2017 @ 12:00"
             strftime(engCompleteDate, 18, "%a %b %d, %Y", localtime(&jobArray[index]->completionDate));
         }
-        printf("%6d  %-13s  %-17s%21s  %-16s\n", jobArray[index]->jobNumber, jobArray[index]->customerName,
-               employeeDisplayName, engDueDate, engCompleteDate);
+        if(!boolIncComplete && boolSkip){
+            //Skip this record altogether
+        }else {
+            count++;
+            employeeDisplayName = getEmployeeName(employeeArray, numOfElements[0], jobArray[index]->empNumber);
 
-        if(index != 0 && (index % 13 == 0)){
+            //Generate a readable date / time in the format "Thu Apr 20, 2017 @ 12:00"
+            strftime(engDueDate, 26, "%b %d, %Y @%H:%M", localtime(&jobArray[index]->dueDate));
+
+
+            printf("%6d  %-13s  %-17s%21s  %-16s\n", jobArray[index]->jobNumber, jobArray[index]->customerName,
+                   employeeDisplayName, engDueDate, boolIncComplete ? engCompleteDate : "");
+        }
+        if(count != 0 && (count % 13 == 0)){
             puts("More records to display...");
             pressEnterToContinue();
             puts("");
-            printf("%6s%15s%19s%21s%18s\n", "Job  ", "Customer  ", "Employee    ", "Due          ", "Completed    ");
-            printf("%6s%15s%19s%21s%18s\n", "Number", "Name    ", "Name      ", "Date and Time   ", "Date      ");
-            printf("%6s%15s%19s%21s%18s\n", "******", "*************", "*****************", "*******************", "****************");
+            if(boolIncComplete) {
+                printf("%6s%15s%19s%21s%18s\n", "Job  ", "Customer  ", "Employee    ", "Due          ", "Completed    ");
+                printf("%6s%15s%19s%21s%18s\n", "Number", "Name    ", "Name      ", "Date and Time   ", "Date      ");
+                printf("%6s%15s%19s%21s%18s\n", "******", "*************", "*****************", "*******************",
+                       "****************");
+            }else{
+                printf("%6s%15s%19s%21s\n", "Job  ", "Customer  ", "Employee    ", "Due          ");
+                printf("%6s%15s%19s%21s\n", "Number", "Name    ", "Name      ", "Date and Time   ");
+                printf("%6s%15s%19s%21s\n", "******", "*************", "*****************", "*******************");
+            }
         }
     }
 
 }//End of function listJobs
+
+/**
+ * Function completeJob
+ * This function is used to mark a job as complete, by assigning a job a valid completion time_t value.
+ * We display a list of un-completed jobs and ask the user to select which one they'd like to complete.
+ * We then ask for a date of completion and assign it to the job.
+ *
+ * @param employeeArray - The employee data structure
+ * @param jobArray - The job data structure
+ * @param numOfElements - An array storing the number of elements in my data structures
+ */
+void completeJob(Employee **employeeArray, Job **jobArray, size_t *numOfElements){
+
+    size_t targetIndex = numOfElements[1];  //Valid size_t, but out of scope!
+    int jobId;
+    do {
+        jobId = 0;
+        listJobs(employeeArray, jobArray, numOfElements, 0);
+        printf("Which job has been completed (1 - %d) :", (int) numOfElements[1]);
+        scanf("%d", &jobId);
+        while (fgetc(stdin) != '\n'); //Clear whatever is left of the stdin buffer
+
+        for (size_t index = 0; index < numOfElements[1]; index++) {
+            if (jobArray[index]->jobNumber == jobId) {
+                targetIndex = index;
+            }
+        }
+
+        if (jobArray[targetIndex]->completionDate != 0 || targetIndex == numOfElements[1]) {
+            //The job selected was either already completed, or targetIndex was not changed, so No Match Found
+            puts("This is not a valid selection or the job has already been completed!");
+
+        }
+    }while(jobArray[targetIndex]->completionDate != 0 || targetIndex == numOfElements[1]);
+
+    puts("Please enter the completion Date and Time...");
+    jobArray[targetIndex]->completionDate = getDateTimeFromUser();
+
+    if(jobArray[targetIndex]->completionDate < jobArray[targetIndex]->dueDate){
+        //Complete ahead of schedule
+        puts("Thank you! Well done for getting this order completed early! Extra 5% commission credited!");
+
+    }else if(jobArray[targetIndex]->completionDate > jobArray[targetIndex]->dueDate){
+        //Order was completed late
+        puts("Thank you! This order was late and as a result, a 5% discount has been applied!");
+
+    }else {
+        //Order was completed in the 30min window that it was due.
+        puts("Thank you! Job Complete on-time!");
+    }
+
+
+}
+
+int findJobIndexByNumber(Job **jobArray, size_t numOfElements) {
+
+    int jobIdToFind;
+
+    do {
+        printf("Job ID to find (1 - %d):", (int) numOfElements);
+        scanf("%d", &jobIdToFind);
+        while (fgetc(stdin) != '\n'); //Clear whatever is left of the stdin buffer
+
+        if (jobIdToFind < 1 || jobIdToFind > numOfElements) {
+            puts("\nThis is not a valid or active Job number!");
+        }
+    }while(jobIdToFind < 1 || jobIdToFind > numOfElements);
+
+
+    //char *returnName;
+    size_t targetIndex = numOfElements;  //Valid size_t, but out of scope!
+
+    for(size_t index = 0; index < numOfElements; index++){
+        if(jobArray[index]->jobNumber == jobIdToFind){
+            targetIndex = index;
+        }
+    }
+
+    if(targetIndex == numOfElements){ //targetIndex was not changed, so No Match Found
+        puts("Job Not Found!");
+        return -1;
+
+    }else {
+        return (int)targetIndex;
+    }
+
+    //return returnName;
+}//End of function getEmployeeName
 
 /**
  * Function jobBubbleSort
@@ -1231,103 +1439,6 @@ time_t getDateTimeFromUser() {
     return proposedDateTime;
 
 }//End of function getDateTimeFromUser
-
-/**
- * Function getEmployeeName
- * This function returns a char* containing the full name of the employeeIdToFind
- *
- * @param employeeArray - The employeeArray data structure.
- * @param numOfElements - The size_t array holding the number of elements in each array. We're interested in index[0].
- * @param employeeIdToFind - The employeeId of the employee we're interested in.
- * @return - a char* containing the full name of the employee.
- */
-char *getEmployeeName(Employee **employeeArray, size_t numOfElements, int employeeIdToFind) {
-//    printf("TESTING - Looking for employee number %d.", employeeIdToFind);
-
-    char *returnName;
-    size_t targetIndex = numOfElements;  //Valid size_t, but out of scope!
-
-    for(size_t index = 0; index < numOfElements; index++){
-        if(employeeArray[index]->number == employeeIdToFind){
-            targetIndex = index;
-        }
-    }
-
-    if(targetIndex == numOfElements){ //targetIndex was not changed, so No Match Found
-        returnName = "Employee Not Found!";
-
-    }else {
-
-        //Allocate memory for the concatenated Employee name with extra space for ', ' and NULL
-        returnName = calloc(
-                strlen(employeeArray[targetIndex]->empLastName) + strlen(employeeArray[targetIndex]->empFirstName) + 3,
-                sizeof(char));
-
-        strcpy(returnName, employeeArray[targetIndex]->empLastName);
-        strcat(returnName, ", ");
-        strcat(returnName, employeeArray[targetIndex]->empFirstName);
-    }
-
-    return returnName;
-}//End of function getEmployeeName
-
-/**
- * Function getEmployeeName
- * This function returns a char* containing the full name of the employeeIdToFind
- *
- * @param employeeArray - The employeeArray data structure.
- * @param numOfElements - The size_t array holding the number of elements in each array. We're interested in index[0].
- * @param employeeIdToFind - The employeeId of the employee we're interested in.
- * @return - a char* containing the full name of the employee.
- */
-void findEmployeeByNumber(Employee **employeeArray, size_t numOfElements) {
-
-    int employeeIdToFind;
-    do {
-        printf("Employee ID to find (1 - %d):", (int) numOfElements);
-        scanf("%d", &employeeIdToFind);
-        while (fgetc(stdin) != '\n'); //Clear whatever is left of the stdin buffer
-
-        if (employeeIdToFind < 1 || employeeIdToFind > numOfElements) {
-            puts("\nThis is not a valid or active Employee number!");
-        }
-    }while(employeeIdToFind < 1 || employeeIdToFind > numOfElements);
-
-
-    //char *returnName;
-    size_t targetIndex = numOfElements;  //Valid size_t, but out of scope!
-
-    for(size_t index = 0; index < numOfElements; index++){
-        if(employeeArray[index]->number == employeeIdToFind){
-            targetIndex = index;
-        }
-    }
-
-    if(targetIndex == numOfElements){ //targetIndex was not changed, so No Match Found
-        puts("Employee Not Found!");
-
-    }else {
-
-        puts("\n\nEmployee Found...\n");
-
-        printf("%8s\n", "Employee");
-        printf("%8s    %-20s\n", "Number", "Employee Name");
-        printf("%8s    %-20s\n", "********", "********************");
-
-        char *displayName = calloc(
-                strlen(employeeArray[targetIndex]->empLastName) + strlen(employeeArray[targetIndex]->empFirstName) + 3,
-                sizeof(char));
-        strcpy(displayName, employeeArray[targetIndex]->empLastName);
-        strcat(displayName, ", ");
-        strcat(displayName, employeeArray[targetIndex]->empFirstName);
-
-        printf("%8u    %-20s\n", employeeArray[targetIndex]->number, displayName);
-
-
-    }
-
-    //return returnName;
-}//End of function getEmployeeName
 
 /**
  * Function clrscr
