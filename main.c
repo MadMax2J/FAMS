@@ -382,7 +382,7 @@ void printWelcome() {
 
 void topBanner(){
     puts("###############################################################################");
-    puts("###   Farm App Management System - v0.1                     by John Byrne   ###");
+    puts("###   Farm App Management System - v0.5                     by John Byrne   ###");
     puts("###############################################################################");
     puts("");
     puts("");
