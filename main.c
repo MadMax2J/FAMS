@@ -8,6 +8,7 @@
 //Preprocessor constant definitions
 #define EMPLOYEE_FILE "employee.dat"
 #define JOB_FILE "job.dat"
+#define VERSION 0.5
 
 //Struct definitions
 typedef struct {
@@ -382,7 +383,7 @@ void printWelcome() {
 
 void topBanner(){
     puts("###############################################################################");
-    puts("###   Farm App Management System - v0.5                     by John Byrne   ###");
+    printf("###   Farm App Management System - v%0.1f                     by John Byrne   ###\n", VERSION);
     puts("###############################################################################");
     puts("");
     puts("");
@@ -1165,7 +1166,9 @@ void completeJob(Employee **employeeArray, Job **jobArray, size_t *numOfElements
 
         if (jobArray[targetIndex]->completionDate != 0 || targetIndex == numOfElements[1]) {
             //The job selected was either already completed, or targetIndex was not changed, so No Match Found
-            puts("This is not a valid selection or the job has already been completed!");
+            puts("\nThis is not a valid selection or the job has already been completed!\n");
+            pressEnterToContinue();
+            puts("");
 
         }
     }while(jobArray[targetIndex]->completionDate != 0 || targetIndex == numOfElements[1]);
@@ -1175,11 +1178,11 @@ void completeJob(Employee **employeeArray, Job **jobArray, size_t *numOfElements
 
     if(jobArray[targetIndex]->completionDate < jobArray[targetIndex]->dueDate){
         //Complete ahead of schedule
-        puts("Thank you! Well done for getting this order completed early! Extra 5% commission credited!");
+        puts("Thank you! Well done for getting this order completed early!\nExtra 5% commission credited!");
 
     }else if(jobArray[targetIndex]->completionDate > jobArray[targetIndex]->dueDate){
         //Order was completed late
-        puts("Thank you! This order was late and as a result, a 5% discount has been applied!");
+        puts("Thank you!\nThis order was late and as a result, a 5% discount has been applied!");
 
     }else {
         //Order was completed in the 30min window that it was due.
