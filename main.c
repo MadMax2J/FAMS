@@ -6,8 +6,8 @@
 #include <ctype.h>
 
 //Preprocessor constant definitions
-#define EMPLOYEE_FILE "../employee.dat"
-#define JOB_FILE "../job.dat"
+#define EMPLOYEE_FILE "employee.dat"
+#define JOB_FILE "job.dat"
 
 //Struct definitions
 typedef struct {
@@ -24,21 +24,35 @@ typedef struct {
     time_t completionDate;  //The job's actual completion date
 }Job;
 
-//Function Prototypes
+//// Function Prototypes ////
+//File Manipulation...
 void** load_data(void** dataStructurePtrs, size_t numOfElements[2]);
+void save_data(void **dataStructurePtrs, size_t numOfElements[2]);
+
+//Interface and Menus...
+void printWelcome();
+void topBanner();
 int display_menu(void** dataStructurePtrs, size_t numOfElements[2]);
+int employeeSubMenu(void **dataStructurePtrs, size_t *numOfElements);
+int jobSubMenu(void **dataStructurePtrs, size_t *numOfElements);
+
+//Employee Functions...
 Employee **addEmployee(Employee **employeeArray, size_t *numOfElements);
-Job **addJob(Job **jobArray, Employee **employeeArray, size_t *numOfElements);
 void listEmployees(Employee **employeeArray, size_t *numOfElements);
 void employeeBubbleSort(Employee **unsortedArray, size_t arraySize, int sortType);
+
+//Job Functions...
+Job **addJob(Job **jobArray, Employee **employeeArray, size_t *numOfElements);
+void listJobs(Employee **employeeArray, Job **jobArray, size_t *numOfElements);
 void jobBubbleSort(Job **unsortedArray, size_t arraySize, int sortType);
+
+//Utility Functions...
 time_t getDateTimeFromUser();
 char *getEmployeeName(Employee **employeeArray, size_t numOfElements, int employeeIdToFind);
-void save_data(void **dataStructurePtrs, size_t numOfElements[2]);
+void findEmployeeByNumber(Employee **employeeArray, size_t numOfElements);
 void clrscr();
 void pressEnterToContinue();
-
-void printWelcome();
+//// End of Function Prototypes ////
 
 int main() {
 
@@ -59,15 +73,14 @@ int main() {
 
     //Menu System
     int userSelection = 0;  //A variable to hold the user input
-    while (userSelection != 10){    //Keep doing this until the user inputs the 'exit' code
+    while (userSelection != 3){    //Keep doing this until the user inputs the 'exit' code
 
         userSelection = display_menu(dataStructurePtrs, numOfElements);
 
         //If the user input is not between 1 - 10, then present an error message...
-        if(userSelection < 1 || userSelection > 10){
+        if(userSelection < 1 || userSelection > 3){
             puts("Invalid Selection - Please try again.");
-            printf("%s", "Press [ENTER] to continue...");
-            getchar();  //Wait for the user to hit [ENTER]
+            pressEnterToContinue();
 
         }//End of if
         clrscr();   //Clear the screen
@@ -82,27 +95,13 @@ int main() {
     //Assuming successful completion of program...
     return 0;
 
-}
-
-/**
- * Function printWelcome
- * This function outputs a welcome message to the user
- */
-void printWelcome() {
-    puts("#########################################################");
-    puts("###                 Welcome to FAMS!                  ###");
-    puts("###          The Farm App Management System           ###");
-    puts("###                                                   ###");
-    puts("###                                                   ###");
-    puts("###               Written by John Byrne               ###");
-    puts("### Week 8 - Final Exam - Fundamentals of Programming ###");
-    puts("#########################################################");
-    puts("");
-    puts("");
-
-}//End of printWelcome()
+}//End of function main()
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
+///////////////////////////////
+//// File Manipulation... ////
+/////////////////////////////
 /**
  * Function load_data
  * This function reads in data from my data files, initializes the data structures with
@@ -133,6 +132,7 @@ void** load_data(void **dataStructurePtrs, size_t numOfElements[2]) {
         printf("%s", "No existing Employee Data found. Creating new Employee Data file...");
         if ((inputFilePtr = fopen(EMPLOYEE_FILE, "w")) == NULL) {
             puts("\nFATAL ERROR - Unable to create Employee Data file. Exiting...");
+            fclose(inputFilePtr);
             exit(-1);
         }
         //Created a new File
@@ -197,6 +197,7 @@ void** load_data(void **dataStructurePtrs, size_t numOfElements[2]) {
         printf("%s", "No existing Job Data found. Creating new Job Data file...");
         if (NULL == (inputFilePtr = fopen(JOB_FILE, "w"))) {
             puts("\nFATAL ERROR - Unable to create Job Data file. Exiting...");
+            fclose(inputFilePtr);
             exit(-1);
         }
         //Created a new File
@@ -228,7 +229,7 @@ void** load_data(void **dataStructurePtrs, size_t numOfElements[2]) {
                 puts("FATAL ERROR - Insufficient memory for Job Data. Exiting...");
                 exit(-1);
             }
-            //File data is in the format '1 1 McDonnalds 23412341234 NULL'
+            //File data is in the format '1 1 PizzaHut 23412341234 NULL'
             //Get the Employee number and store it in the data structure
             fscanf(inputFilePtr, "%s", temp); //Employee Number
             jobArray[i]->empNumber = (int) strtoul(temp, NULL, 10);
@@ -268,6 +269,125 @@ void** load_data(void **dataStructurePtrs, size_t numOfElements[2]) {
 }//End of function load_data
 
 /**
+ * Function save_data
+ * This function writes the content of my data arrays to the employee and job files.
+ *
+ * @param dataStructurePtrs - Pointers to my data arrays
+ * @param numOfElements - The number of elements in each array
+ */
+void save_data(void **dataStructurePtrs, size_t numOfElements[2]) {
+    //Bring in a local reference to my data structures...
+    Employee **employeeArray = dataStructurePtrs[0];
+    Job **jobArray = dataStructurePtrs[1];
+
+    FILE *outputFilePtr = NULL;//A pointer to my output file.
+    //Check that I can open the file...
+    int retry = 1;
+    while (retry) {
+        if ((outputFilePtr = fopen(EMPLOYEE_FILE, "w")) == NULL) { //If opening fails...
+            int userInput;
+
+            fprintf(stderr, "Error opening output file '%s'.\n", EMPLOYEE_FILE);
+            fprintf(stderr, "%s\n", "Please ensure the file is not open in another program.\n");
+            fprintf(stderr, "%s\n", "This process needs to succeed, or changes made in this session will be lost.");
+            fprintf(stderr, "%s", "Retry [y]es or [n]o :");
+
+            userInput = toupper(getchar());
+            while (fgetc(stdin) != '\n');   //Clear whatever is left of the stdin buffer
+            if(userInput == 78) exit(-1);   //78 is ASCII 'N', So, just exit without saving data.
+
+        }else {
+            retry = 0;
+        }//End of if / else
+    }//Back to while condition
+
+    //Sort Employee data by number before saving to file.
+    employeeBubbleSort(employeeArray, numOfElements[0], 1);
+
+    //Continuing if fopen was successful...
+    fprintf(outputFilePtr, "%d", (int)numOfElements[0]);  //Top line of the file is the Number of Employees
+    for (size_t x = 0; x < numOfElements[0]; x++){             //Iterate through the rest of the dataArray...
+        //Send a 'newline' and the next employee record to file
+        fprintf(outputFilePtr, "\n%d %s %s",
+                employeeArray[x]->number, employeeArray[x]->empLastName, employeeArray[x]->empFirstName);
+        // I do it this way so that I'm not left with an empty line at the end of my file.
+    }//End of for
+
+    fclose(outputFilePtr); //Close the file
+
+    /////////////////////////////
+    //Do the same for my Job data
+    /////////////////////////////
+
+    //Check that I can open the file...
+    retry = 1;
+    while (retry) {
+        if ((outputFilePtr = fopen(JOB_FILE, "w")) == NULL) { //If opening fails...
+            int userInput;
+
+            fprintf(stderr, "Error opening output file '%s'.\n", JOB_FILE);
+            fprintf(stderr, "%s\n", "Please ensure the file is not open in another program.\n");
+            fprintf(stderr, "%s\n", "This process needs to succeed, or changes made in this session will be lost.");
+            fprintf(stderr, "%s", "Retry [y]es or [n]o :");
+
+            userInput = toupper(getchar());
+            while (fgetc(stdin) != '\n');   //Clear whatever is left of the stdin buffer
+            if(userInput == 78) exit(-1);   //78 is ASCII 'N', So, just exit without saving data.
+
+        }else {
+            retry = 0;
+        }//End of if / else
+    }//Back to while condition
+
+    //Sort Job data by number before saving to file.
+    jobBubbleSort(jobArray, numOfElements[1], 1);
+
+    //Continuing if fopen was successful...
+    fprintf(outputFilePtr, "%d", (int)numOfElements[1]);  //Top line of the file is the Number of Jobs
+    for (size_t x = 0; x < numOfElements[1]; x++){             //Iterate through the rest of the dataArray...
+        //Send a 'newline' and the next employee record to file
+        fprintf(outputFilePtr, "\n%d %d %s %llu %llu",
+                jobArray[x]->empNumber, jobArray[x]->jobNumber, jobArray[x]->customerName,
+                jobArray[x]->dueDate, jobArray[x]->completionDate);
+        // I do it this way so that I'm not left with an empty line at the end of my file.
+    }//End of for
+
+    fclose(outputFilePtr); //Close the file
+
+}//End of function save_data
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+/////////////////////////////////
+//// Interface and Menus... ////
+///////////////////////////////
+/**
+ * Function printWelcome
+ * This function outputs a welcome message to the user
+ */
+void printWelcome() {
+    puts("###############################################################################");
+    puts("###                            Welcome to FAMS!                             ###");
+    puts("###                     The Farm App Management System                      ###");
+    puts("###                                                                         ###");
+    puts("###                                                                         ###");
+    puts("###                          Written by John Byrne                          ###");
+    puts("###            Week 8 - Final Exam - Fundamentals of Programming            ###");
+    puts("###############################################################################");
+    puts("");
+    puts("");
+
+}//End of printWelcome()
+
+void topBanner(){
+    puts("###############################################################################");
+    puts("###   Farm App Management System - v0.1                     by John Byrne   ###");
+    puts("###############################################################################");
+    puts("");
+    puts("");
+}
+
+/**
  * Function display_menu
  * This function displays the menu of options to the user and passes control to other functions based on the user's input.
  *
@@ -277,25 +397,18 @@ void** load_data(void **dataStructurePtrs, size_t numOfElements[2]) {
  */
 int display_menu(void **dataStructurePtrs, size_t *numOfElements) {
     //Bring in a local reference to my data structures...
-    Employee **employeeArray = dataStructurePtrs[0];
-    Job **jobArray = dataStructurePtrs[1];
-
-
+    //Employee **employeeArray = dataStructurePtrs[0];
+    //Job **jobArray = dataStructurePtrs[1];
+    int userSelection = 0;  //A variable to hold the user input
+    topBanner();
     puts("#################");
     puts("### Main Menu ###");
     puts("#################\n");
 
-    puts("1. Add an Employee");
-    puts("2. Add a Job");
-    puts("3. List all Employees");
-    puts("4. Sort Employees by Name");
-    puts("5. List all Jobs by due date");
-    puts("6. List all Jobs by Customer");
-    puts("7. Sort Jobs by due date and time and list??");
-    puts("8. Set Job as completed");
-    puts("9. List Jobs by employee\n");
+    puts("1. Employee Menu");
+    puts("2. Job Menu\n");
 
-    puts("10. Exit");
+    puts("3. Exit");
 
     printf("\n%s", "Please make a selection :");
     int userInput;
@@ -305,6 +418,76 @@ int display_menu(void **dataStructurePtrs, size_t *numOfElements) {
     switch (userInput){
         case 1:{
             clrscr();
+
+            while (userSelection != 5){    //Keep doing this until the user inputs the 'exit' code of Employee Menu
+
+                userSelection = employeeSubMenu(dataStructurePtrs, numOfElements);
+
+                //If the user input is not between 1 - 5, then present an error message...
+                if(userSelection < 1 || userSelection > 5){
+                    puts("Invalid Selection - Please try again.");
+                    pressEnterToContinue();
+
+                }//End of if
+                clrscr();   //Clear the screen
+
+            }//Back to while condition
+
+            break;
+        }
+        case 2:{
+            clrscr();
+
+            while (userSelection != 7){    //Keep doing this until the user inputs the 'exit' code of Job Menu
+
+                userSelection = jobSubMenu(dataStructurePtrs, numOfElements);
+
+                //If the user input is not between 1 - 5, then present an error message...
+                if(userSelection < 1 || userSelection > 7){
+                    puts("Invalid Selection - Please try again.");
+                    pressEnterToContinue();
+
+                }//End of if
+                clrscr();   //Clear the screen
+
+            }//Back to while condition
+
+            break;
+        }
+        default: {
+            //If the user enters anything that is not 1 - 2...
+            //Do nothing. I let the main() function handle this eventuality
+            break;
+        }
+    }
+
+    return userInput;
+}
+
+int employeeSubMenu(void **dataStructurePtrs, size_t *numOfElements){
+    //Bring in a local reference to my data structures...
+    Employee **employeeArray = dataStructurePtrs[0];
+    topBanner();
+    puts("#####################");
+    puts("### Employee Menu ###");
+    puts("#####################\n");
+
+    puts("1. Add an Employee");
+    puts("2. List all Employees by Name");
+    puts("3. List all Employees by Number");
+    puts("4. Find Employee by Number\n");
+
+    puts("5. Back to the Main Menu");
+
+    printf("\n%s", "Please make a selection :");
+    int userInput;
+    scanf("%d", &userInput);
+    while (fgetc(stdin) != '\n'); //Clear whatever is left of the stdin buffer
+
+    switch (userInput){
+        case 1:{
+            clrscr();
+            topBanner();
             puts("########################");
             puts("### Add New Employee ###");
             puts("########################\n");
@@ -318,6 +501,81 @@ int display_menu(void **dataStructurePtrs, size_t *numOfElements) {
         }
         case 2:{
             clrscr();
+            topBanner();
+            puts("##############################");
+            puts("### List Employees by Name ###");
+            puts("##############################\n");
+
+            employeeBubbleSort(employeeArray, numOfElements[0], 2);
+            listEmployees(employeeArray, numOfElements);
+            puts("");
+
+            pressEnterToContinue();
+            break;
+        }
+        case 3:{
+            clrscr();
+            topBanner();
+            puts("################################");
+            puts("### List Employees by Number ###");
+            puts("################################\n");
+
+            employeeBubbleSort(employeeArray, numOfElements[0], 1);
+            listEmployees(employeeArray, numOfElements);
+            puts("");
+
+            pressEnterToContinue();
+            break;
+        }
+        case 4:{
+            clrscr();
+            topBanner();
+            puts("###############################");
+            puts("### Find Employee by Number ###");
+            puts("###############################\n");
+
+            findEmployeeByNumber(employeeArray, numOfElements[0]);
+            puts("");
+
+            pressEnterToContinue();
+            break;
+        }
+        default:{
+            //If the user enters anything that is not 1 - 4...
+            //Do nothing. To be handled by display_menu function
+        }
+    }//End of Switch
+    return userInput;
+
+}//End of function employeeSubMenu
+
+int jobSubMenu(void **dataStructurePtrs, size_t *numOfElements){
+    //Bring in a local reference to my data structures...
+    Employee **employeeArray = dataStructurePtrs[0];
+    Job **jobArray = dataStructurePtrs[1];
+    topBanner();
+    puts("################");
+    puts("### Job Menu ###");
+    puts("################\n");
+
+    puts("1. Add a Job");
+    puts("2. List outstanding Jobs to be completed by {date}");
+    puts("3. List all Jobs by Customer");
+    puts("4. Sort by 'Due Date' and list");
+    puts("5. Set Job as 'Completed'");
+    puts("6. List Jobs by employee\n");
+
+    puts("7. Back to the Main Menu");
+
+    printf("\n%s", "Please make a selection :");
+    int userInput;
+    scanf("%d", &userInput);
+    while (fgetc(stdin) != '\n'); //Clear whatever is left of the stdin buffer
+
+    switch (userInput){
+        case 1:{
+            clrscr();
+            topBanner();
             puts("###################");
             puts("### Add New Job ###");
             puts("###################\n");
@@ -329,13 +587,29 @@ int display_menu(void **dataStructurePtrs, size_t *numOfElements) {
             pressEnterToContinue();
             break;
         }
+        case 2:{
+            clrscr();
+            topBanner();
+            puts("##################################################");
+            puts("### Outstanding Jobs to be completed by {date} ###");
+            puts("##################################################\n");
+
+            //ToDo ADD FUNCTION
+
+            puts("");
+
+            pressEnterToContinue();
+            break;
+        }
         case 3:{
             clrscr();
-            puts("#####################");
-            puts("### Employee List ###");
-            puts("#####################\n");
+            topBanner();
+            puts("#################################");
+            puts("### List all Jobs by Customer ###");
+            puts("#################################\n");
 
-            listEmployees(employeeArray, numOfElements);
+            jobBubbleSort(jobArray, numOfElements[1], 3);
+            listJobs(employeeArray, jobArray, numOfElements);
             puts("");
 
             pressEnterToContinue();
@@ -343,11 +617,13 @@ int display_menu(void **dataStructurePtrs, size_t *numOfElements) {
         }
         case 4:{
             clrscr();
-            puts("##############################");
-            puts("### Sort Employees by Name ###");
-            puts("##############################\n");
+            topBanner();
+            puts("###################################");
+            puts("### Sort by 'Due Date' and list ###");
+            puts("###################################\n");
 
-            employeeBubbleSort(employeeArray, numOfElements[0], 2);
+            jobBubbleSort(jobArray, numOfElements[1], 4);
+            listJobs(employeeArray, jobArray, numOfElements);
             puts("");
 
             pressEnterToContinue();
@@ -355,88 +631,46 @@ int display_menu(void **dataStructurePtrs, size_t *numOfElements) {
         }
         case 5:{
             clrscr();
-            puts("#############################");
-            puts("### Sort Jobs by Due Date ###");
-            puts("#############################\n");
+            topBanner();
+            puts("##############################");
+            puts("### Set Job as 'Completed' ###");
+            puts("##############################\n");
 
-            jobBubbleSort(jobArray, numOfElements[1], 4);
+            //ToDo ADD FUNCTION
+
             puts("");
 
             pressEnterToContinue();
             break;
         }
         case 6:{
-            puts("Item 6");
-            for (size_t i = 0; i < numOfElements[1]; i++) {   //Iterate for each Job record...
-                printf("%u\t%u\t%s\t%lu\t%lu\n", jobArray[i]->empNumber, jobArray[i]->jobNumber,
-                       jobArray[i]->customerName, (unsigned long)jobArray[i]->dueDate, (unsigned long)jobArray[i]->completionDate);
-            }
-            printf("%s", "Press [ENTER] to continue...");
-            getchar();
-            break;
-        }
-        case 7:{
-            puts("Item 7");
-            printf("%s", "Press [ENTER] to continue...");
-            getchar();
-            break;
-        }
-        case 8:{
-            puts("Item 8");
-            printf("%s", "Press [ENTER] to continue...");
-            getchar();
-            break;
-        }
-        case 9:{
-            puts("Item 9");
-            printf("%s", "Press [ENTER] to continue...");
-            getchar();
-            break;
-        }
+            clrscr();
+            topBanner();
+            puts("#############################");
+            puts("### List Jobs by employee ###");
+            puts("#############################\n");
 
-        default: {
-            //If the user enters anything that is not 1 - 9...
-            //Do nothing. I let the main() function handle this eventuality
-            break;
-        }
-    }
+            //ToDo ADD FUNCTION
 
-    return userInput;
-}
-
-/**
- * Function listEmployees
- * This function outputs a list of employees, in a tabular format
- *
- * @param employeeArray - The employeeArray data structure
- * @param numOfElements - The size_t array holding the number of elements in each array. We're interested in index[0].
- */
-void listEmployees(Employee **employeeArray, size_t *numOfElements) {
-    size_t index;
-    char displayName[21] = "";
-
-    printf("%8s\n", "Employee");
-    printf("%8s    %-20s\n", "Number", "Employee Name");
-    printf("%8s    %-20s\n", "********", "********************");
-    for (index = 0; index < numOfElements[0]; index++) {   //Iterate for each Employee record...
-
-        strcpy(displayName, employeeArray[index]->empLastName);
-        strcat(displayName, ", ");
-        strcat(displayName, employeeArray[index]->empFirstName);
-        printf("%8u    %-20s\n", employeeArray[index]->number, displayName);
-
-        if(index != 0 && (index % 15 == 0)){
-            puts("More records to display...");
-            pressEnterToContinue();
             puts("");
-            printf("%8s\n", "Employee");
-            printf("%8s    %-20s\n", "Number", "Employee Name");
-            printf("%8s    %-20s\n", "********", "********************");
+
+            pressEnterToContinue();
+            break;
         }
-    }
+        default:{
+            //If the user enters anything that is not 1 - 2...
+            //Do nothing. To be handled by display_menu function
+        }
+    }//End of Switch
+    return userInput;
 
-}
+}//End of function employeeSubMenu
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+
+////////////////////////////////
+//// Employee Functions... ////
+//////////////////////////////
 /**
  * Function addEmployee
  * This function adds an employee to the employeeArray data structure. But before it can do that, we need to increase
@@ -511,6 +745,113 @@ Employee **addEmployee(Employee **employeeArray, size_t *numOfElements) {
     return employeeArray; //Return the potentially updated employeeArray pointer
 }//End of function addEmployee
 
+/**
+ * Function listEmployees
+ * This function outputs a list of employees, in a tabular format
+ *
+ * @param employeeArray - The employeeArray data structure
+ * @param numOfElements - The size_t array holding the number of elements in each array. We're interested in index[0].
+ */
+void listEmployees(Employee **employeeArray, size_t *numOfElements) {
+    size_t index;
+    char displayName[21] = "";
+
+    printf("%8s\n", "Employee");
+    printf("%8s    %-20s\n", "Number", "Employee Name");
+    printf("%8s    %-20s\n", "********", "********************");
+    for (index = 0; index < numOfElements[0]; index++) {   //Iterate for each Employee record...
+
+        strcpy(displayName, employeeArray[index]->empLastName);
+        strcat(displayName, ", ");
+        strcat(displayName, employeeArray[index]->empFirstName);
+        printf("%8u    %-20s\n", employeeArray[index]->number, displayName);
+
+        if(index != 0 && (index % 13 == 0)){
+            puts("More records to display...");
+            pressEnterToContinue();
+            puts("");
+            printf("%8s\n", "Employee");
+            printf("%8s    %-20s\n", "Number", "Employee Name");
+            printf("%8s    %-20s\n", "********", "********************");
+        }
+    }
+
+}//End of function listEmployees
+
+/**
+ * Function employeeBubbleSort
+ * This function sorts an array in Ascending order and reports performance statistics to the user
+ *
+ * @param unsortedArray
+ * @param numOfElements
+ * @param sortType - 1 will sort by Employee Number; 2 will sort by Employee Name
+ */
+void employeeBubbleSort(Employee **unsortedArray, size_t arraySize, int sortType) {
+
+    //size_t arraySize = numOfElements[0];
+    //clock_t startTime = clock();    //Variable to hold the number of ticks at the start of this function
+    //unsigned int swapCount = 0;     //Counter to track the number of data item swaps required to complete this task.
+    //unsigned int comparisonCount = 0;   //Counter to track the number of data item comparisons required to complete this task.
+
+    size_t pass;    //Passes counter
+    size_t i;       //Comparisons counter
+    Employee *temp;     //Temporary location used to swap array elements
+
+    // loop to control number of passes
+    for (pass = 1; pass < arraySize; pass++) {
+
+        // loop to control number of comparisons per pass
+        for (i = 0; i < arraySize - 1; i++) {
+            //For every comparison, increment the comparisonCount counter
+            //comparisonCount++;
+
+            if(sortType == 1) {//Sort by number
+
+                // compare adjacent elements and swap them if first
+                // element is greater than second element
+                if (unsortedArray[i]->number > unsortedArray[i + 1]->number) {
+                    //For every swap, increment the swapCount counter
+                    //swapCount++;
+
+                    //Do the Swap...
+                    temp = unsortedArray[i];                    //Store item[i] in temp.
+                    unsortedArray[i] = unsortedArray[i + 1];    //Put item[i + 1] into location [i]
+                    unsortedArray[i + 1] = temp;                //Put temp in to location [i + 1]
+
+                } // end if
+
+            }else if(sortType == 2) {//Sort by Employee Name
+
+                // compare adjacent elements and swap them if first
+                // element is greater than second element
+                if (strcmp(getEmployeeName(unsortedArray, arraySize, unsortedArray[i]->number),
+                           getEmployeeName(unsortedArray, arraySize, unsortedArray[i + 1]->number)) > 0) {
+                    //For every swap, increment the swapCount counter
+                    //swapCount++;
+
+                    //Do the Swap...
+                    temp = unsortedArray[i];                    //Store item[i] in temp.
+                    unsortedArray[i] = unsortedArray[i + 1];    //Put item[i + 1] into location [i]
+                    unsortedArray[i + 1] = temp;                //Put temp in to location [i + 1]
+
+                } // end if
+            }
+        } // end inner for
+    } // end outer for
+
+    //clock_t finishTime = clock();   //Variable to hold the number of ticks at the end of this function.
+
+    //Print statistics...
+    //printf("Bubble Sort completed after %f seconds,\n\t with %u data swaps and %u data comparisons.\n",
+    //       (double) (finishTime - startTime) / CLOCKS_PER_SEC, swapCount, comparisonCount);
+
+}//End of function employeeBubbleSort
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+///////////////////////////
+//// Job Functions... ////
+/////////////////////////
 /**
  * Function addJob
  * This function adds a Job to the jobArray data structure. But before it can do that, we need to increase
@@ -629,73 +970,51 @@ Job **addJob(Job **jobArray, Employee **employeeArray, size_t *numOfElements) {
 }//End of function addJob
 
 /**
- * Function bubbleSort
- * This function sorts an array in Ascending order and reports performance statistics to the user
+ * Function listJobs
+ * This function outputs a list of jobs, in a tabular format
  *
- * @param unsortedArray
- * @param numOfElements
- * @param sortType - 1 will sort by Employee Number; 2 will sort by Employee Name
+ * @param employeeArray - The employeeArray data structure
+ * @param jobArray - The jobArray data structure
+ * @param numOfElements - The size_t array holding the number of elements in each array.
  */
-void employeeBubbleSort(Employee **unsortedArray, size_t arraySize, int sortType) {
+void listJobs(Employee **employeeArray, Job **jobArray, size_t *numOfElements) {
+    size_t index;
+    char *employeeDisplayName;
+    char *engDueDate = calloc(27, sizeof(char)); //"Apr 20, 2017 @12:00" + NULL
+    char *engCompleteDate = calloc(19, sizeof(char)); //"Thu Apr 20, 2017" + NULL
 
-    //size_t arraySize = numOfElements[0];
-    clock_t startTime = clock();    //Variable to hold the number of ticks at the start of this function
-    unsigned int swapCount = 0;     //Counter to track the number of data item swaps required to complete this task.
-    unsigned int comparisonCount = 0;   //Counter to track the number of data item comparisons required to complete this task.
+    printf("%6s%15s%19s%21s%18s\n", "Job  ", "Customer  ", "Employee    ", "Due          ", "Completed    ");
+    printf("%6s%15s%19s%21s%18s\n", "Number", "Name    ", "Name      ", "Date and Time   ", "Date      ");
+    printf("%6s%15s%19s%21s%18s\n", "******", "*************", "*****************", "*******************", "****************");
 
-    size_t pass;    //Passes counter
-    size_t i;       //Comparisons counter
-    Employee *temp;     //Temporary location used to swap array elements
+    for (index = 0; index < numOfElements[1]; index++) {   //Iterate for each Job record...
 
-    // loop to control number of passes
-    for (pass = 1; pass < arraySize; pass++) {
+        employeeDisplayName = getEmployeeName(employeeArray, numOfElements[0], jobArray[index]->empNumber);
 
-        // loop to control number of comparisons per pass
-        for (i = 0; i < arraySize - 1; i++) {
-            //For every comparison, increment the comparisonCount counter
-            comparisonCount++;
+        //Generate a readable date / time in the format "Thu Apr 20, 2017 @ 12:00"
+        //printf("\nTESTING ### %lu\n", (unsigned long)jobArray[index]->dueDate);
+        strftime(engDueDate, 26, "%b %d, %Y @%H:%M", localtime(&jobArray[index]->dueDate));
+        //printf("\nTESTING ### %s\n", engDueDate);
+        if (jobArray[index]->completionDate == 0){
+            strcpy(engCompleteDate, "In progress...");
+        }else {
+            //Generate a readable date / time in the format "Thu Apr 20, 2017 @ 12:00"
+            strftime(engCompleteDate, 18, "%a %b %d, %Y", localtime(&jobArray[index]->completionDate));
+        }
+        printf("%6d  %-13s  %-17s%21s  %-16s\n", jobArray[index]->jobNumber, jobArray[index]->customerName,
+               employeeDisplayName, engDueDate, engCompleteDate);
 
-            if(sortType == 1) {//Sort by number
+        if(index != 0 && (index % 13 == 0)){
+            puts("More records to display...");
+            pressEnterToContinue();
+            puts("");
+            printf("%6s%15s%19s%21s%18s\n", "Job  ", "Customer  ", "Employee    ", "Due          ", "Completed    ");
+            printf("%6s%15s%19s%21s%18s\n", "Number", "Name    ", "Name      ", "Date and Time   ", "Date      ");
+            printf("%6s%15s%19s%21s%18s\n", "******", "*************", "*****************", "*******************", "****************");
+        }
+    }
 
-                // compare adjacent elements and swap them if first
-                // element is greater than second element
-                if (unsortedArray[i]->number > unsortedArray[i + 1]->number) {
-                    //For every swap, increment the swapCount counter
-                    swapCount++;
-
-                    //Do the Swap...
-                    temp = unsortedArray[i];                    //Store item[i] in temp.
-                    unsortedArray[i] = unsortedArray[i + 1];    //Put item[i + 1] into location [i]
-                    unsortedArray[i + 1] = temp;                //Put temp in to location [i + 1]
-
-                } // end if
-
-            }else if(sortType == 2) {//Sort by Employee Name
-
-                // compare adjacent elements and swap them if first
-                // element is greater than second element
-                if (strcmp(getEmployeeName(unsortedArray, arraySize, unsortedArray[i]->number),
-                           getEmployeeName(unsortedArray, arraySize, unsortedArray[i + 1]->number)) > 0) {
-                    //For every swap, increment the swapCount counter
-                    swapCount++;
-
-                    //Do the Swap...
-                    temp = unsortedArray[i];                    //Store item[i] in temp.
-                    unsortedArray[i] = unsortedArray[i + 1];    //Put item[i + 1] into location [i]
-                    unsortedArray[i + 1] = temp;                //Put temp in to location [i + 1]
-
-                } // end if
-            }
-        } // end inner for
-    } // end outer for
-
-    clock_t finishTime = clock();   //Variable to hold the number of ticks at the end of this function.
-
-    //Print statistics...
-    printf("Bubble Sort completed after %f seconds,\n\twith %u data swaps and %u data comparisons.\n",
-           (double) (finishTime - startTime) / CLOCKS_PER_SEC, swapCount, comparisonCount);
-
-}//End of function employeeBubbleSort
+}//End of function listJobs
 
 /**
  * Function jobBubbleSort
@@ -710,9 +1029,9 @@ void employeeBubbleSort(Employee **unsortedArray, size_t arraySize, int sortType
  */
 void jobBubbleSort(Job **unsortedArray, size_t arraySize, int sortType) {
 
-    clock_t startTime = clock();    //Variable to hold the number of ticks at the start of this function
-    unsigned int swapCount = 0;     //Counter to track the number of data item swaps required to complete this task.
-    unsigned int comparisonCount = 0;   //Counter to track the number of data item comparisons required to complete this task.
+    //clock_t startTime = clock();    //Variable to hold the number of ticks at the start of this function
+    //unsigned int swapCount = 0;     //Counter to track the number of data item swaps required to complete this task.
+    //unsigned int comparisonCount = 0;   //Counter to track the number of data item comparisons required to complete this task.
 
     size_t pass;    //Passes counter
     size_t i;       //Comparisons counter
@@ -724,7 +1043,7 @@ void jobBubbleSort(Job **unsortedArray, size_t arraySize, int sortType) {
         // loop to control number of comparisons per pass
         for (i = 0; i < arraySize - 1; i++) {
             //For every comparison, increment the comparisonCount counter
-            comparisonCount++;
+            //comparisonCount++;
 
             switch(sortType){
 
@@ -734,7 +1053,7 @@ void jobBubbleSort(Job **unsortedArray, size_t arraySize, int sortType) {
                     // element is greater than second element
                     if (unsortedArray[i]->jobNumber > unsortedArray[i + 1]->jobNumber) {
                         //For every swap, increment the swapCount counter
-                        swapCount++;
+                        //swapCount++;
 
                         //Do the Swap...
                         temp = unsortedArray[i];                    //Store item[i] in temp.
@@ -751,7 +1070,7 @@ void jobBubbleSort(Job **unsortedArray, size_t arraySize, int sortType) {
                     // element is greater than second element
                     if (unsortedArray[i]->empNumber > unsortedArray[i + 1]->empNumber) {
                         //For every swap, increment the swapCount counter
-                        swapCount++;
+                        //swapCount++;
 
                         //Do the Swap...
                         temp = unsortedArray[i];                    //Store item[i] in temp.
@@ -767,7 +1086,7 @@ void jobBubbleSort(Job **unsortedArray, size_t arraySize, int sortType) {
                     // element is greater than second element
                     if (strcmp(unsortedArray[i]->customerName, unsortedArray[i + 1]->customerName) > 0) {
                         //For every swap, increment the swapCount counter
-                        swapCount++;
+                        //swapCount++;
 
                         //Do the Swap...
                         temp = unsortedArray[i];                    //Store item[i] in temp.
@@ -782,7 +1101,7 @@ void jobBubbleSort(Job **unsortedArray, size_t arraySize, int sortType) {
                     // element is greater than second element
                     if (unsortedArray[i]->dueDate > unsortedArray[i + 1]->dueDate) {
                         //For every swap, increment the swapCount counter
-                        swapCount++;
+                        //swapCount++;
 
                         //Do the Swap...
                         temp = unsortedArray[i];                    //Store item[i] in temp.
@@ -799,54 +1118,19 @@ void jobBubbleSort(Job **unsortedArray, size_t arraySize, int sortType) {
         } // end inner for
     } // end outer for
 
-    clock_t finishTime = clock();   //Variable to hold the number of ticks at the end of this function.
+    //clock_t finishTime = clock();   //Variable to hold the number of ticks at the end of this function.
 
     //Print statistics...
-    printf("Bubble Sort completed after %f seconds,\n\twith %u data swaps and %u data comparisons.\n",
-           (double) (finishTime - startTime) / CLOCKS_PER_SEC, swapCount, comparisonCount);
+    //printf("Bubble Sort completed after %f seconds,\n\t with %u data swaps and %u data comparisons.\n",
+    //       (double) (finishTime - startTime) / CLOCKS_PER_SEC, swapCount, comparisonCount);
 
 }//End of function employeeBubbleSort
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
-/**
- * Function getEmployeeName
- * This function returns a char* containing the full name of the employeeIdToFind
- *
- * @param employeeArray - The employeeArray data structure.
- * @param numOfElements - The size_t array holding the number of elements in each array. We're interested in index[0].
- * @param employeeIdToFind - The employeeId of the employee we're interested in.
- * @return - a char* containing the full name of the employee.
- */
-char *getEmployeeName(Employee **employeeArray, size_t numOfElements, int employeeIdToFind) {
-//    printf("TESTING - Looking for employee number %d.", employeeIdToFind);
-
-    char *returnName;
-    size_t targetIndex = numOfElements;  //Valid size_t, but out of scope!
-
-    for(size_t index = 0; index < numOfElements; index++){
-        if(employeeArray[index]->number == employeeIdToFind){
-            targetIndex = index;
-        }
-    }
-
-    if(targetIndex == numOfElements){ //targetIndex was not changed, so No Match Found
-        returnName = "Employee Not Found!";
-
-    }else {
-
-        //Allocate memory for the concatenated Employee name with extra space for ', ' and NULL
-        returnName = calloc(
-                strlen(employeeArray[targetIndex]->empLastName) + strlen(employeeArray[targetIndex]->empFirstName) + 3,
-                sizeof(char));
-
-        strcpy(returnName, employeeArray[targetIndex]->empLastName);
-        strcat(returnName, ", ");
-        strcat(returnName, employeeArray[targetIndex]->empFirstName);
-    }
-
-    return returnName;
-}
-
+///////////////////////////////
+//// Utility Functions... ////
+/////////////////////////////
 /**
  * Function getDateTimeFromUser
  * This function asks the users for the year, month, day, hour and half-hour, and returns an appropriate time_t representation.
@@ -860,7 +1144,7 @@ time_t getDateTimeFromUser() {
     //Get Due Hour
     //Get Due Minute (in 30min chunks)
     char *month[] = {"Spacer", "January", "February", "March", "April", "May", "June",
-                   "July", "August", "September", "October", "November", "December"};
+                     "July", "August", "September", "October", "November", "December"};
 
     time_t proposedDateTime = 0;
 
@@ -873,7 +1157,7 @@ time_t getDateTimeFromUser() {
         if (proposedYear < 1900 || proposedYear > 2037) {
             puts("This year is out of range!");
         }
-        //Year 2038 problem?? 2 digit entry?? Todo
+
     } while (proposedYear < 1900 || proposedYear > 2037);
 
     //Resolve Month
@@ -949,92 +1233,101 @@ time_t getDateTimeFromUser() {
 }//End of function getDateTimeFromUser
 
 /**
- * Function save_data
- * This function writes the content of my data arrays to the employee and job files.
+ * Function getEmployeeName
+ * This function returns a char* containing the full name of the employeeIdToFind
  *
- * @param dataStructurePtrs - Pointers to my data arrays
- * @param numOfElements - The number of elements in each array
+ * @param employeeArray - The employeeArray data structure.
+ * @param numOfElements - The size_t array holding the number of elements in each array. We're interested in index[0].
+ * @param employeeIdToFind - The employeeId of the employee we're interested in.
+ * @return - a char* containing the full name of the employee.
  */
-void save_data(void **dataStructurePtrs, size_t numOfElements[2]) {
-    //Bring in a local reference to my data structures...
-    Employee **employeeArray = dataStructurePtrs[0];
-    Job **jobArray = dataStructurePtrs[1];
+char *getEmployeeName(Employee **employeeArray, size_t numOfElements, int employeeIdToFind) {
+//    printf("TESTING - Looking for employee number %d.", employeeIdToFind);
 
-    FILE *outputFilePtr = NULL;//A pointer to my output file.
-    //Check that I can open the file...
-    int retry = 1;
-    while (retry) {
-        if ((outputFilePtr = fopen(EMPLOYEE_FILE, "w")) == NULL) { //If opening fails...
-            int userInput;
+    char *returnName;
+    size_t targetIndex = numOfElements;  //Valid size_t, but out of scope!
 
-            fprintf(stderr, "Error opening output file '%s'.\n", EMPLOYEE_FILE);
-            fprintf(stderr, "%s\n", "Please ensure the file is not open in another program.\n");
-            fprintf(stderr, "%s\n", "This process needs to succeed, or changes made in this session will be lost.");
-            fprintf(stderr, "%s", "Retry [y]es or [n]o :");
+    for(size_t index = 0; index < numOfElements; index++){
+        if(employeeArray[index]->number == employeeIdToFind){
+            targetIndex = index;
+        }
+    }
 
-            userInput = toupper(getchar());
-            while (fgetc(stdin) != '\n');   //Clear whatever is left of the stdin buffer
-            if(userInput == 78) exit(-1);   //78 is ASCII 'N', So, just exit without saving data.
+    if(targetIndex == numOfElements){ //targetIndex was not changed, so No Match Found
+        returnName = "Employee Not Found!";
 
-        }else {
-            retry = 0;
-        }//End of if / else
-    }//Back to while condition
+    }else {
 
-    //Sort Employee data by number before saving to file.
-    employeeBubbleSort(employeeArray, numOfElements[0], 1);
+        //Allocate memory for the concatenated Employee name with extra space for ', ' and NULL
+        returnName = calloc(
+                strlen(employeeArray[targetIndex]->empLastName) + strlen(employeeArray[targetIndex]->empFirstName) + 3,
+                sizeof(char));
 
-    //Continuing if fopen was successful...
-    fprintf(outputFilePtr, "%d", (int)numOfElements[0]);  //Top line of the file is the Number of Employees
-    for (size_t x = 0; x < numOfElements[0]; x++){             //Iterate through the rest of the dataArray...
-        //Send a 'newline' and the next employee record to file
-        fprintf(outputFilePtr, "\n%d %s %s",
-                employeeArray[x]->number, employeeArray[x]->empLastName, employeeArray[x]->empFirstName);
-        // I do it this way so that I'm not left with an empty line at the end of my file.
-    }//End of for
+        strcpy(returnName, employeeArray[targetIndex]->empLastName);
+        strcat(returnName, ", ");
+        strcat(returnName, employeeArray[targetIndex]->empFirstName);
+    }
 
-    fclose(outputFilePtr); //Close the file
+    return returnName;
+}//End of function getEmployeeName
 
-    /////////////////////////////
-    //Do the same for my Job data
-    /////////////////////////////
+/**
+ * Function getEmployeeName
+ * This function returns a char* containing the full name of the employeeIdToFind
+ *
+ * @param employeeArray - The employeeArray data structure.
+ * @param numOfElements - The size_t array holding the number of elements in each array. We're interested in index[0].
+ * @param employeeIdToFind - The employeeId of the employee we're interested in.
+ * @return - a char* containing the full name of the employee.
+ */
+void findEmployeeByNumber(Employee **employeeArray, size_t numOfElements) {
 
-    //Check that I can open the file...
-    retry = 1;
-    while (retry) {
-        if ((outputFilePtr = fopen(JOB_FILE, "w")) == NULL) { //If opening fails...
-            int userInput;
+    int employeeIdToFind;
+    do {
+        printf("Employee ID to find (1 - %d):", (int) numOfElements);
+        scanf("%d", &employeeIdToFind);
+        while (fgetc(stdin) != '\n'); //Clear whatever is left of the stdin buffer
 
-            fprintf(stderr, "Error opening output file '%s'.\n", JOB_FILE);
-            fprintf(stderr, "%s\n", "Please ensure the file is not open in another program.\n");
-            fprintf(stderr, "%s\n", "This process needs to succeed, or changes made in this session will be lost.");
-            fprintf(stderr, "%s", "Retry [y]es or [n]o :");
+        if (employeeIdToFind < 1 || employeeIdToFind > numOfElements) {
+            puts("\nThis is not a valid or active Employee number!");
+        }
+    }while(employeeIdToFind < 1 || employeeIdToFind > numOfElements);
 
-            userInput = toupper(getchar());
-            while (fgetc(stdin) != '\n');   //Clear whatever is left of the stdin buffer
-            if(userInput == 78) exit(-1);   //78 is ASCII 'N', So, just exit without saving data.
 
-        }else {
-            retry = 0;
-        }//End of if / else
-    }//Back to while condition
+    //char *returnName;
+    size_t targetIndex = numOfElements;  //Valid size_t, but out of scope!
 
-    //Sort Job data by number before saving to file.
-    jobBubbleSort(jobArray, numOfElements[1], 1);
+    for(size_t index = 0; index < numOfElements; index++){
+        if(employeeArray[index]->number == employeeIdToFind){
+            targetIndex = index;
+        }
+    }
 
-    //Continuing if fopen was successful...
-    fprintf(outputFilePtr, "%d", (int)numOfElements[1]);  //Top line of the file is the Number of Jobs
-    for (size_t x = 0; x < numOfElements[1]; x++){             //Iterate through the rest of the dataArray...
-        //Send a 'newline' and the next employee record to file
-        fprintf(outputFilePtr, "\n%d %d %s %llu %llu",
-                jobArray[x]->empNumber, jobArray[x]->jobNumber, jobArray[x]->customerName,
-                jobArray[x]->dueDate, jobArray[x]->completionDate);
-        // I do it this way so that I'm not left with an empty line at the end of my file.
-    }//End of for
+    if(targetIndex == numOfElements){ //targetIndex was not changed, so No Match Found
+        puts("Employee Not Found!");
 
-    fclose(outputFilePtr); //Close the file
+    }else {
 
-}//End of function save_data
+        puts("\n\nEmployee Found...\n");
+
+        printf("%8s\n", "Employee");
+        printf("%8s    %-20s\n", "Number", "Employee Name");
+        printf("%8s    %-20s\n", "********", "********************");
+
+        char *displayName = calloc(
+                strlen(employeeArray[targetIndex]->empLastName) + strlen(employeeArray[targetIndex]->empFirstName) + 3,
+                sizeof(char));
+        strcpy(displayName, employeeArray[targetIndex]->empLastName);
+        strcat(displayName, ", ");
+        strcat(displayName, employeeArray[targetIndex]->empFirstName);
+
+        printf("%8u    %-20s\n", employeeArray[targetIndex]->number, displayName);
+
+
+    }
+
+    //return returnName;
+}//End of function getEmployeeName
 
 /**
  * Function clrscr
