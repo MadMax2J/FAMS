@@ -10,7 +10,7 @@
 #define JOB_FILE "job.dat"
 #define EMP_REPORT_FILE "_Employee_Report.txt"
 #define JOB_REPORT_FILE "_Job_Report.txt"
-#define VERSION 0.6
+#define VERSION 0.8
 
 //Struct definitions
 typedef struct {
@@ -29,13 +29,13 @@ typedef struct {
 
 //// Function Prototypes ////
 //File Manipulation...
-void** load_data(void** dataStructurePtrs, size_t numOfElements[2]);
-void save_data(void **dataStructurePtrs, size_t numOfElements[2]);
+void** load_data(void** dataStructurePtrs, size_t *numOfElements);
+void save_data(void **dataStructurePtrs, size_t *numOfElements);
 
 //Interface and Menus...
 void printWelcome();
 void topBanner();
-int display_menu(void** dataStructurePtrs, size_t numOfElements[2]);
+int display_menu(void** dataStructurePtrs, size_t *numOfElements);
 int employeeSubMenu(void **dataStructurePtrs, size_t *numOfElements);
 int jobSubMenu(void **dataStructurePtrs, size_t *numOfElements);
 int reportsSubMenu(void **dataStructurePtrs, size_t *numOfElements);
@@ -51,6 +51,7 @@ void findEmployeeByNumber(Employee **employeeArray, size_t numOfElements);
 Job **add_new_job(Job **jobArray, Employee **employeeArray, size_t *numOfElements);
 void listJobs(Employee **employeeArray, Job **jobArray, size_t *numOfElements, int boolIncComplete);
 void completeJob(Employee **employeeArray, Job **jobArray, size_t *numOfElements);
+void listJobsByEmployeeSpecial(Employee **employeeArray, Job **jobArray, size_t *numOfElements);
 void jobBubbleSort(Job **unsortedArray, size_t arraySize, int sortType);
 
 //Report Functions...
@@ -120,7 +121,7 @@ int main() {
  * @param numOfElements - The number of elements in each array
  * @return - A pointer to my array of pointers :)
  */
-void** load_data(void **dataStructurePtrs, size_t numOfElements[2]) {
+void** load_data(void **dataStructurePtrs, size_t *numOfElements) {
 
     FILE *inputFilePtr; //A pointer for the input data file being processed.
 
@@ -284,7 +285,7 @@ void** load_data(void **dataStructurePtrs, size_t numOfElements[2]) {
  * @param dataStructurePtrs - Pointers to my data arrays
  * @param numOfElements - The number of elements in each array
  */
-void save_data(void **dataStructurePtrs, size_t numOfElements[2]) {
+void save_data(void **dataStructurePtrs, size_t *numOfElements) {
     //Bring in a local reference to my data structures...
     Employee **employeeArray = dataStructurePtrs[0];
     Job **jobArray = dataStructurePtrs[1];
@@ -675,12 +676,11 @@ int jobSubMenu(void **dataStructurePtrs, size_t *numOfElements){
         case 6:{
             clrscr();
             topBanner();
-            puts("#############################");
-            puts("### List Jobs by employee ###");
-            puts("#############################\n");
+            puts("########################################################");
+            puts("### List Jobs, ordered by employee, then by due date ###");
+            puts("########################################################\n");
 
-            //ToDo ADD FUNCTION
-
+            listJobsByEmployeeSpecial(employeeArray, jobArray, numOfElements);
             puts("");
 
             pressEnterToContinue();
@@ -1109,7 +1109,7 @@ Job **add_new_job(Job **jobArray, Employee **employeeArray, size_t *numOfElement
 
 
         printf("%s", "\nCustomer's name :");
-        scanf("%s", userInput);    //Get all of the String - might include Spaces!! Need to test this //ToDo
+        scanf("%s", userInput);    //Get all of the String - might include Spaces!! Need to test this //
         while (fgetc(stdin) != '\n'); //Clear whatever is left of the stdin buffer
         jobArray[numOfElements[1] - 1]->customerName = calloc(strlen(userInput) + 1, sizeof(char));
         strcpy(jobArray[numOfElements[1] - 1]->customerName, userInput);
@@ -1307,6 +1307,7 @@ void completeJob(Employee **employeeArray, Job **jobArray, size_t *numOfElements
 
 }
 
+/*
 int findJobIndexByNumber(Job **jobArray, size_t numOfElements) {
 
     int jobIdToFind;
@@ -1341,6 +1342,75 @@ int findJobIndexByNumber(Job **jobArray, size_t numOfElements) {
 
     //return returnName;
 }//End of function getEmployeeName
+*/
+
+void listJobsByEmployeeSpecial(Employee **employeeArray, Job **jobArray, size_t *numOfElements) {
+
+    char *employeeDisplayName;
+    char *engDueDate = calloc(20, sizeof(char)); //"Apr 20, 2017 @12:00" + NULL
+    char *engCompleteDate = calloc(17, sizeof(char)); //"Thu Apr 20, 2017" + NULL
+
+
+    printf("%6s%15s%19s%21s%18s\n", "Job  ", "Customer  ", "Employee    ", "Due          ", "Completed    ");
+    printf("%6s%15s%19s%21s%18s\n", "Number", "Name    ", "Name      ", "Date and Time   ", "Date      ");
+    printf("%6s%15s%19s%21s%18s\n", "******", "*************", "*****************", "*******************",
+           "****************");
+
+    //Sort employeeArray so that it is in Name order...
+    employeeBubbleSort(employeeArray, numOfElements[0], 2);
+    //Sort jobArray by DueDate
+    jobBubbleSort(jobArray, numOfElements[1], 4);
+
+
+    size_t count = 0;
+    //for each employee
+    for(size_t emp = 0; emp < numOfElements[0]; emp++){
+
+        for (size_t job = 0; job < numOfElements[1]; job++) {
+
+            //If match count++
+            if(employeeArray[emp]->number == jobArray[job]->empNumber){
+                count++;
+                employeeDisplayName = getEmployeeName(employeeArray, numOfElements[0], employeeArray[emp]->number);
+
+                if (jobArray[job]->completionDate == 0){
+                    strcpy(engCompleteDate, "In progress...");
+                }else {
+                    //Generate a readable date / time in the format "Thu Apr 20, 2017 @ 12:00"
+                    strftime(engCompleteDate, 17, "%a %b %d, %Y", localtime(&jobArray[job]->completionDate));
+                }
+
+                //Generate a readable date / time in the format "Thu Apr 20, 2017 @ 12:00"
+                strftime(engDueDate, 20, "%b %d, %Y @%H:%M", localtime(&jobArray[job]->dueDate));
+
+                printf("%6d  %-13s  %-17s%21s  %-16s\n", jobArray[job]->jobNumber, jobArray[job]->customerName,
+                       employeeDisplayName, engDueDate, engCompleteDate);
+
+                if(count != 0 && (count % 10 == 0)){
+                    puts("\nMore records to display...");
+                    pressEnterToContinue();
+                    puts("");
+
+                    printf("%6s%15s%19s%21s%18s\n", "Job  ", "Customer  ", "Employee    ", "Due          ", "Completed    ");
+                    printf("%6s%15s%19s%21s%18s\n", "Number", "Name    ", "Name      ", "Date and Time   ", "Date      ");
+                    printf("%6s%15s%19s%21s%18s\n", "******", "*************", "*****************", "*******************",
+                           "****************");
+
+                }
+
+            }
+
+
+        }
+
+
+
+
+
+    }
+
+
+}
 
 /**
  * Function jobBubbleSort
@@ -1390,7 +1460,7 @@ void jobBubbleSort(Job **unsortedArray, size_t arraySize, int sortType) {
                     break;
                 }
 
-                case 2: {//Sort by Employee
+                case 2: {//Sort by Employee Number
 
                     // compare adjacent elements and swap them if first
                     // element is greater than second element
@@ -1593,7 +1663,7 @@ void generateJobReportFile(Employee **employeeArray, Job **jobArray, size_t *num
                 if (jobArray[index]->completionDate == 0){
                     strcpy(engCompleteDate, "In progress...");
                 }else {
-                    //Generate a readable date / time in the format "Thu Apr 20, 2017 @ 12:00" ToDo
+                    //Generate a readable date / time in the format "Thu Apr 20, 2017 @ 12:00"
                     strftime(engCompleteDate, 18, "%a %b %d, %Y", localtime(&jobArray[index]->completionDate));
                 }
 
