@@ -55,6 +55,7 @@ void jobBubbleSort(Job **unsortedArray, size_t arraySize, int sortType);
 
 //Report Functions...
 void generateEmployeeReportFile(Employee **employeeArrayCopy, size_t arraySize);
+void generateJobReportFile(Employee **employeeArray, Job **jobArray, size_t *numOfElements);
 
 //Utility Functions...
 time_t getDateTimeFromUser();
@@ -698,6 +699,8 @@ int reportsSubMenu(void **dataStructurePtrs, size_t *numOfElements){
 
     //Bring in a local reference to my data structures...
     Employee **employeeArray = dataStructurePtrs[0];
+    Job **jobArray = dataStructurePtrs[1];
+
     topBanner();
     puts("####################");
     puts("### Reports Menu ###");
@@ -720,7 +723,7 @@ int reportsSubMenu(void **dataStructurePtrs, size_t *numOfElements){
             puts("#############################################");
             puts("### All current Employees, sorted by Name ###");
             puts("#############################################\n");
-                generateEmployeeReportFile(employeeArray, numOfElements[0]);
+            generateEmployeeReportFile(employeeArray, numOfElements[0]);
 
             puts("");
 
@@ -733,7 +736,7 @@ int reportsSubMenu(void **dataStructurePtrs, size_t *numOfElements){
             puts("####################################");
             puts("### All Jobs, sorted by Customer ###");
             puts("####################################\n");
-
+            generateJobReportFile(employeeArray, jobArray, numOfElements);
 
             puts("");
 
@@ -752,9 +755,9 @@ int reportsSubMenu(void **dataStructurePtrs, size_t *numOfElements){
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
-////////////////////////////////
+///////////////////////////////
 //// Employee Functions... ////
-//////////////////////////////
+///////////////////////////////
 /**
  * Function addEmployee
  * This function adds an employee to the employeeArray data structure. But before it can do that, we need to increase
@@ -1480,14 +1483,12 @@ void generateEmployeeReportFile(Employee **employeeArray, size_t arraySize){
 
         //Generate a date / time prefix that I'll use as part of my output filename
         time_t currentDateTime = time(NULL);
-        char *employeeReportFile = calloc(14 + strlen(EMP_REPORT_FILE), sizeof(char));
-        strftime(employeeReportFile, 10, "%Y%m%d", localtime(&currentDateTime));
+        char *employeeReportFile = calloc(8 + strlen(EMP_REPORT_FILE) + 1, sizeof(char)); //20170308 + EMP_REPORT_FILE + NULL char
+        strftime(employeeReportFile, 9, "%Y%m%d", localtime(&currentDateTime));
         strcat(employeeReportFile, EMP_REPORT_FILE);
 
-        printf("TESTING %d\n", (int)strlen(employeeReportFile));
-
-        char *fullDateTime = calloc(40, sizeof(char));
-        strftime(fullDateTime, 39, "%A, %B %d, %Y @ %I:%M%p", localtime(&currentDateTime));
+        char *fullDateTime = calloc(50, sizeof(char));
+        strftime(fullDateTime, 49, "%A, %B %d, %Y @ %I:%M%p", localtime(&currentDateTime));
 
         //Check that I can open the file...
         if ((outputFilePtr = fopen(employeeReportFile, "w")) == NULL) { //If opening fails...
@@ -1504,10 +1505,10 @@ void generateEmployeeReportFile(Employee **employeeArray, size_t arraySize){
                             "Report generated :%s.\n\n", fullDateTime);
 
 
-            char displayName[21] = "";
+            char displayName[64] = "";
 
             fprintf(outputFilePtr, "%8s", "Employee");
-            fprintf(outputFilePtr, "\n%8s    %-20s", "Number", "Employee Name");
+            fprintf(outputFilePtr, "\n%8s    %-20s", "Number ", "Employee Name");
             fprintf(outputFilePtr, "\n%8s    %-20s", "********", "********************");
             for (size_t index = 0; index < arraySize; index++) {   //Iterate for each Employee record...
 
@@ -1522,11 +1523,104 @@ void generateEmployeeReportFile(Employee **employeeArray, size_t arraySize){
 
         fclose(outputFilePtr); //Close the file
 
-        printf("Complete!\nReport saved to %s\n", employeeReportFile);
+        printf("Complete!\nReport saved to '%s'\n", employeeReportFile);
 
 
     }//End of For (Allocating memory to Employee**
 }
+
+/**
+ * Function generateEmployeeReportFile
+ * This function is will product a report detailing the current Employees, sorted by name and output to a file.
+ * @param employeeArrayCopy - The Employee data Structure
+ * @param numOfElements - The number of elements in the data Structure
+ */
+void generateJobReportFile(Employee **employeeArray, Job **jobArray, size_t *numOfElements){
+
+    Job **jobArrayCopy = calloc(numOfElements[1], sizeof(Job*));
+    if (!jobArrayCopy){
+        puts("FATAL ERROR - Insufficient memory to Copy Employee Data. Cancelling...");
+        //return;
+    }else {
+
+        //Make a copy of the Employ Struct 'Pointers'
+        memcpy(jobArrayCopy, jobArray, numOfElements[1] * sizeof(Job*));
+
+        //Sort the jobArrayCopy pointers, in order of Employee name
+        jobBubbleSort(jobArrayCopy, numOfElements[1], 3);
+
+        /////////////////////////
+
+        FILE *outputFilePtr = NULL;//A pointer to my output file.
+
+        //Generate a date / time prefix that I'll use as part of my output filename
+        time_t currentDateTime = time(NULL);
+        char *jobReportFile = calloc(8 + strlen(JOB_REPORT_FILE) + 1, sizeof(char)); //20170308 + JOB_REPORT_FILE + NULL char
+        strftime(jobReportFile, 9, "%Y%m%d", localtime(&currentDateTime));
+        strcat(jobReportFile, JOB_REPORT_FILE);
+
+        char *fullDateTime = calloc(50, sizeof(char));
+        strftime(fullDateTime, 49, "%A, %B %d, %Y @ %I:%M%p", localtime(&currentDateTime));
+
+        //Check that I can open the file...
+        if ((outputFilePtr = fopen(jobReportFile, "w")) == NULL) { //If opening fails...
+            fprintf(stderr, "Error opening output file '%s'. Cancelling...\n", jobReportFile);
+
+        }else {
+            //Continuing if fopen was successful...
+            printf("Generating Report, Stand By...");
+            //Report Header of the file...
+            fprintf(outputFilePtr,
+                    "###############################################################################\n"
+                            "###               FAMS - Job Report, sorted by Customer Name                ###\n"
+                            "###############################################################################\n\n\n"
+                            "Report generated :%s.\n\n", fullDateTime);
+
+
+            size_t index;
+            char *employeeDisplayName;
+            char *engDueDate = calloc(20, sizeof(char)); //"Apr 20, 2017 @12:00" + NULL
+            char *engCompleteDate = calloc(17, sizeof(char)); //"Thu Apr 20, 2017" + NULL
+
+
+            fprintf(outputFilePtr, "%6s%15s%19s%21s%18s", "Job  ", "Customer  ", "Employee    ", "Due          ", "Completed    ");
+            fprintf(outputFilePtr, "\n%6s%15s%19s%21s%18s", "Number", "Name    ", "Name      ", "Date and Time   ", "Date      ");
+            fprintf(outputFilePtr, "\n%6s%15s%19s%21s%18s", "******", "*************", "*****************", "*******************",
+                   "****************");
+
+
+            for (index = 0; index < numOfElements[1]; index++) {   //Iterate for each Job record...
+                if (jobArray[index]->completionDate == 0){
+                    strcpy(engCompleteDate, "In progress...");
+                }else {
+                    //Generate a readable date / time in the format "Thu Apr 20, 2017 @ 12:00" ToDo
+                    strftime(engCompleteDate, 18, "%a %b %d, %Y", localtime(&jobArray[index]->completionDate));
+                }
+
+                    employeeDisplayName = getEmployeeName(employeeArray, numOfElements[0], jobArray[index]->empNumber);
+
+                    //Generate a readable date / time in the format "Thu Apr 20, 2017 @ 12:00"
+                    strftime(engDueDate, 26, "%b %d, %Y @%H:%M", localtime(&jobArray[index]->dueDate));
+
+
+                    fprintf(outputFilePtr, "\n%6d  %-13s  %-17s%21s  %-16s", jobArray[index]->jobNumber, jobArray[index]->customerName,
+                           employeeDisplayName, engDueDate, engCompleteDate);
+
+
+            }
+
+        }//End of if / else
+
+        fclose(outputFilePtr); //Close the file
+
+        printf("Complete!\nReport saved to '%s'\n", jobReportFile);
+
+
+    }//End of For (Allocating memory to Employee**
+}
+
+
+
 
 ///////////////////////////////
 //// Utility Functions... ////
