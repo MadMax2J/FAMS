@@ -3,7 +3,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-//#include <ctype.h>
 
 //Preprocessor constant definitions
 #define EMPLOYEE_FILE "employee.dat"
@@ -53,8 +52,8 @@ void listJobs(Employee **employeeArray, Job **jobArray, size_t *numOfElements, i
 void completeJob(Employee **employeeArray, Job **jobArray, size_t *numOfElements);
 void displayJobByNumber(Employee **employeeArray, Job **jobArray, size_t *numOfElements);
 void displayJobByDueDate(Employee **employeeArray, Job **jobArray, size_t *numOfElements);
-void displayJobsDueThisWeek(Employee **employeeArray, Job **jobArray, size_t *numOfElements);
-void listJobsByEmployeeSpecial(Employee **employeeArray, Job **jobArray, size_t *numOfElements);
+void displayUrgentJobs(Employee **employeeArray, Job **jobArray, size_t *numOfElements);
+void listJobsGroupedByEmployee(Employee **employeeArray, Job **jobArray, size_t *numOfElements);
 void jobBubbleSort(Job **unsortedArray, size_t arraySize, int sortType);
 
 //Report Functions...
@@ -714,7 +713,7 @@ int jobSubMenu(void **dataStructurePtrs, size_t *numOfElements){
 
             //Sort the array by Due Date, so that the most OVERDUE jobs will be top of the list!
             jobBubbleSort(jobArray, numOfElements[1], 4);
-            displayJobsDueThisWeek(employeeArray, jobArray, numOfElements);
+            displayUrgentJobs(employeeArray, jobArray, numOfElements);
             puts("");
 
             pressEnterToContinue();
@@ -759,7 +758,12 @@ int jobSubMenu(void **dataStructurePtrs, size_t *numOfElements){
             puts("### List all Jobs, sorted by Employee and Due Date ###");
             puts("######################################################\n");
 
-            listJobsByEmployeeSpecial(employeeArray, jobArray, numOfElements);
+            //Sort employeeArray so that it is in Name order...
+            employeeBubbleSort(employeeArray, numOfElements[0], 2);
+            //Sort jobArray by DueDate
+            jobBubbleSort(jobArray, numOfElements[1], 4);
+
+            listJobsGroupedByEmployee(employeeArray, jobArray, numOfElements);
             puts("");
 
             pressEnterToContinue();
@@ -961,7 +965,7 @@ void view_employees(Employee **employeeArray, size_t *numOfElements) {
         printf("%8u    %-20s\n", employeeArray[index]->number, displayName);
 
         //If there are more records then will fit on the screen, then...
-        if(index != 0 && (index % 13 == 0)){
+        if(index != 0 && (index % 10 == 0)){
             puts("More records to display...");
             pressEnterToContinue();
             puts("");
@@ -1043,6 +1047,7 @@ char *getEmployeeName(Employee **employeeArray, size_t numOfElements, int employ
     for(size_t index = 0; index < numOfElements; index++){  //Iterate through the array...
         if(employeeArray[index]->number == employeeIdToFind){   //... finding the array index with the matching empID
             targetIndex = index;
+            break;  //Stop searching
         }
     }
     if(targetIndex == numOfElements){ //targetIndex was not changed, so No Match Found
@@ -1272,10 +1277,10 @@ void listJobs(Employee **employeeArray, Job **jobArray, size_t *numOfElements, i
     }
 
     int boolSkip;
-    int recordCount;
+    int recordCount = 0;
     for (index = 0; index < numOfElements[1]; index++) {   //Iterate for each Job record...
         boolSkip = 0;
-        recordCount = 0;    //Count the records so that we can reprint the heading every so often...
+        //Prepare the record...
         if (jobArray[index]->completionDate == 0){
             if(jobArray[index]->dueDate < currentDateTime){
                 strcpy(engCompleteDate, "*** OVERDUE! ***");
@@ -1331,16 +1336,18 @@ void listJobs(Employee **employeeArray, Job **jobArray, size_t *numOfElements, i
 void completeJob(Employee **employeeArray, Job **jobArray, size_t *numOfElements){
 
     size_t targetIndex = numOfElements[1];  //Valid size_t, but out of scope!
+
+    //Ask for a job ID from the user to complete...
     int jobId;
-    do {
+    do {    //Keep doing this... ...until we have a record to be completed...
         jobId = 0;
-        listJobs(employeeArray, jobArray, numOfElements, 0);
+        listJobs(employeeArray, jobArray, numOfElements, 0);       //List the incomplete jobs
         printf("\nWhich job has been completed (1 - %d) :", (int) numOfElements[1]);
         scanf("%d", &jobId);
         while (fgetc(stdin) != '\n'); //Clear whatever is left of the stdin buffer
 
-        for (size_t index = 0; index < numOfElements[1]; index++) {
-            if (jobArray[index]->jobNumber == jobId) {
+        for (size_t index = 0; index < numOfElements[1]; index++) { //Iterate through the data structure
+            if (jobArray[index]->jobNumber == jobId) {  //Find the index in the array for the pointer with the matching jobId
                 targetIndex = index;
             }
         }
@@ -1356,9 +1363,10 @@ void completeJob(Employee **employeeArray, Job **jobArray, size_t *numOfElements
     puts("");
 
     //Generate a readable date / time in the format "Thu Apr 20, 2017 @ 12:00"
-    char *engDueDate = calloc(27, sizeof(char));
-    strftime(engDueDate, 26, "%a %b %d, %Y @ %H:%M", localtime(&jobArray[targetIndex]->dueDate));
+    char *engDueDate = calloc(25, sizeof(char));
+    strftime(engDueDate, 25, "%a %b %d, %Y @ %H:%M", localtime(&jobArray[targetIndex]->dueDate));
 
+    //Show the record to be completed...
     puts("You have selected the following job to complete...");
     printf("%10s%20s%17s%28s\n", "Job Number", "Assigned Employee", "Customer Name", "Due Date / Time");
     printf("%10s%20s%17s%28s\n", "**********", "*****************", "*************", "************************");
@@ -1385,26 +1393,34 @@ void completeJob(Employee **employeeArray, Job **jobArray, size_t *numOfElements
     //...but the requirement is just to use the Current Date/Time.
     jobArray[targetIndex]->completionDate = time(NULL);
 
+    //Check the completion time against the due date...
     if(jobArray[targetIndex]->completionDate < jobArray[targetIndex]->dueDate){
         //Complete ahead of schedule
         puts("\nThank you! Well done for getting this order completed early!\nExtra 5% commission credited!");
 
     }else if(jobArray[targetIndex]->completionDate > jobArray[targetIndex]->dueDate){
         //Order was completed late
-        puts("\nThank you!\nThis order was late and as a result, a 5% discount has been applied!");
+        puts("\nThank you!\nThis order was late and as a result, a 5% sales discount has been applied!");
 
     }else {
         //Order was completed on time to the second!
         //Or if user a user entered dateTime, in the 30min window that it was due.
         puts("\nThank you! Job Complete on-time!");
-    }
+    }//End of if / ifelse / else
+}//End of function completeJob
 
-
-}
-
-
+/**
+ * Function displayJobByNumber
+ * This function gets a JobId from the user and displays the Job record associated with it.
+ *
+ * @param employeeArray - the employee data structure
+ * @param jobArray - The job data structure
+ * @param numOfElements - An array holding the number of elements in each data structure
+ */
 void displayJobByNumber(Employee **employeeArray, Job **jobArray, size_t *numOfElements) {
-    time_t currentDateTime = time(NULL);
+    time_t currentDateTime = time(NULL); //Get the current time
+
+    //Do this until we get a valid jobId, or '0' to cancel...
     int jobIdToFind;
     do {
         printf("Job ID to find (1 - %d) '0' to cancel :", (int) numOfElements[1]);
@@ -1413,72 +1429,77 @@ void displayJobByNumber(Employee **employeeArray, Job **jobArray, size_t *numOfE
 
         if (jobIdToFind < 0 || jobIdToFind > numOfElements[1]) {
             puts("\nThis is not a valid or active Job number!");
-        }
+        }//End of if
     }while(jobIdToFind < 0 || jobIdToFind > numOfElements[1]);
     //Have a valid JobID...
 
-    if(jobIdToFind != 0) {
+    if(jobIdToFind) { //If not '0'...
         //Need to find the array index of the Job with the matching JobID...
         size_t targetIndex = numOfElements[1];  //Valid size_t, but out of scope!
 
-        for (size_t job = 0; job < numOfElements[1]; job++) {
-            if (jobArray[job]->jobNumber == jobIdToFind) {
+        for (size_t job = 0; job < numOfElements[1]; job++) { //Iterate through the Data structure
+            if (jobArray[job]->jobNumber == jobIdToFind) {  //Find the job with the matching jobId
                 targetIndex = job;
-                break;
-            }
-        }
+                break;  //Stop searching
+            }//End of if
+        }//End of for
         if (targetIndex == numOfElements[1]) { //targetIndex was not changed, so No Match Found
             puts("Job Not Found!"); //This should not happen!
-        }
-        //Have a targetIndex.
+        }//End of if
+        //Have a targetIndex...
 
         //Now I need to display the record...
         char *employeeDisplayName;
         char *engDueDate = calloc(20, sizeof(char)); //"Apr 20, 2017 @12:00" + NULL
         char *engCompleteDate = calloc(17, sizeof(char)); //"Thu Apr 20, 2017" + NULL
 
-
         printf("\n%6s%15s%19s%21s%18s\n", "Job  ", "Customer  ", "Employee    ", "Due          ", "Completed    ");
         printf("%6s%15s%19s%21s%18s\n", "Number", "Name    ", "Name      ", "Date and Time   ", "Date      ");
         printf("%6s%15s%19s%21s%18s\n", "******", "*************", "*****************", "*******************",
                "****************");
 
-
         employeeDisplayName = getEmployeeName(employeeArray, numOfElements[0], jobArray[targetIndex]->empNumber);
 
-        if (jobArray[targetIndex]->completionDate == 0) {
+        if (jobArray[targetIndex]->completionDate == 0) {   //Not complete yet
             if (jobArray[targetIndex]->dueDate < currentDateTime) {
                 strcpy(engCompleteDate, "*** OVERDUE! ***");
             } else {
                 strcpy(engCompleteDate, "In progress...");
-            }
-        } else {
+            }//End if/else
+        } else {    //Show the completion date
             //Generate a readable date / time in the format "Thu Apr 20, 2017 @ 12:00"
             strftime(engCompleteDate, 17, "%a %b %d, %Y", localtime(&jobArray[targetIndex]->completionDate));
-        }
+        }//End if/else
 
         //Generate a readable date / time in the format "Thu Apr 20, 2017 @ 12:00"
         strftime(engDueDate, 20, "%b %d, %Y @%H:%M", localtime(&jobArray[targetIndex]->dueDate));
 
         printf("%6d  %-13s  %-17s%21s  %-16s\n", jobArray[targetIndex]->jobNumber, jobArray[targetIndex]->customerName,
                employeeDisplayName, engDueDate, engCompleteDate);
-    }
+    }//End if
+}//End of function displayJobByNumber
 
-
-}//End of function getEmployeeName
-
+/**
+ * Function displayJobByDueDate
+ * This function displays any job that are due on the user specified date.
+ *
+ * @param employeeArray - The employee data structure
+ * @param jobArray - The job data structure
+ * @param numOfElements - The array holding the number of elements in each of my data structures
+ */
 void displayJobByDueDate(Employee **employeeArray, Job **jobArray, size_t *numOfElements){
-    time_t currentDateTime = time(NULL);
+    time_t currentDateTime = time(NULL);    //Get the current DateTime
+
     //Need a date to search by...
     puts("Search for jobs due on what date...");
-    time_t searchDate = getDateTimeFromUser(0); //ToDo
+    time_t searchDate = getDateTimeFromUser(0); //Get a dat from the user...not a time.
 
     //Generate a comparable search string in the format "20170309"
     char *searchDateStr = calloc(9, sizeof(char));
     strftime(searchDateStr, 9, "%Y%m%d", localtime(&searchDate));
 
 
-    //Now I need to display the record...
+    //Now I need to display the record headings...
     char *employeeDisplayName;
     char *engDueDate = calloc(20, sizeof(char)); //"Apr 20, 2017 @12:00" + NULL
     char *engCompleteDate = calloc(17, sizeof(char)); //"Thu Apr 20, 2017" + NULL
@@ -1489,14 +1510,11 @@ void displayJobByDueDate(Employee **employeeArray, Job **jobArray, size_t *numOf
     printf("%6s%15s%19s%21s%18s\n", "******", "*************", "*****************", "*******************",
            "****************");
 
-
-
-
-    char *jobDateStr = calloc(9, sizeof(char));
-
+    char *jobDateStr = calloc(9, sizeof(char)); //make some space for the Job Date string that I'm going to check
     //Need to find the array index for any Job with the matching Due Date...
-    int recordsFound = 0;
-    for(size_t job = 0; job < numOfElements[1]; job++){
+    int recordsFound = 0;   //To allow me to reprint the heading after a number of records
+    for(size_t job = 0; job < numOfElements[1]; job++){ //Iterate through my data structure...
+        //Get the due dat and convert it to the searchable string format...
         strftime(jobDateStr, 9, "%Y%m%d", localtime(&jobArray[job]->dueDate));
         if(strcmp(searchDateStr, jobDateStr) == 0){ //Match
             recordsFound++;
@@ -1511,41 +1529,48 @@ void displayJobByDueDate(Employee **employeeArray, Job **jobArray, size_t *numOf
             }else {
                 //Generate a readable date / time in the format "Thu Apr 20, 2017 @ 12:00"
                 strftime(engCompleteDate, 17, "%a %b %d, %Y", localtime(&jobArray[job]->completionDate));
-            }
+            }//End of if/else
 
             //Generate a readable date / time in the format "Thu Apr 20, 2017 @ 12:00"
             strftime(engDueDate, 20, "%b %d, %Y @%H:%M", localtime(&jobArray[job]->dueDate));
 
+            //Print the record...
             printf("%6d  %-13s  %-17s%21s  %-16s\n", jobArray[job]->jobNumber, jobArray[job]->customerName,
                    employeeDisplayName, engDueDate, engCompleteDate);
+        }//End of if
+    }//End of for
 
-
-
-        }
-    }
     if(!recordsFound){ //If no records Found...
+        //Tell the user...
         char *engSearchDate = calloc(17, sizeof(char)); //"Thu Apr 20, 2017" + NULL
         strftime(engSearchDate, 17, "%a %b %d, %Y", localtime(&searchDate));
 
         printf("No Jobs due for completion on the date specified: %s\n", engSearchDate);
-    }
+    }//end of if
+}//End of function displayJobsByDueDate
 
-}
-
-void displayJobsDueThisWeek(Employee **employeeArray, Job **jobArray, size_t *numOfElements){
+/**
+ * Function displayUrgentJobs
+ * This function outputs Jobs that are Due by the end of the current work week, as well as any jobs that are overdue.
+ *
+ * @param employeeArray - The employee data structure
+ * @param jobArray  - The job data structure
+ * @param numOfElements - An array containing the number of elements in each of the data structures
+ */
+void displayUrgentJobs(Employee **employeeArray, Job **jobArray, size_t *numOfElements){
     //Need a week to search by...
     time_t currentDateTime = time(NULL);
 
     //Generate a comparable search string in the format "42"
     char *searchWeekNumStr = calloc(3, sizeof(char));
-    strftime(searchWeekNumStr, 3, "%W", localtime(&currentDateTime)); //Week number with the first Monday as the first day of week one (00-53)
+    //Week number with the first Monday as the first day of week one (00-53)...
+    strftime(searchWeekNumStr, 3, "%W", localtime(&currentDateTime));
 
 
-    //Now I need to display the records...
+    //Now I need to display the record headers...
     char *employeeDisplayName;
     char *engDueDate = calloc(20, sizeof(char)); //"Apr 20, 2017 @12:00" + NULL
     char *engCompleteDate = calloc(17, sizeof(char)); //"Thu Apr 20, 2017" + NULL
-
 
     printf("\n%6s%15s%19s%21s%18s\n", "Job  ", "Customer  ", "Employee    ", "Due          ", "Completed    ");
     printf("%6s%15s%19s%21s%18s\n", "Number", "Name    ", "Name      ", "Date and Time   ", "Date      ");
@@ -1553,72 +1578,70 @@ void displayJobsDueThisWeek(Employee **employeeArray, Job **jobArray, size_t *nu
            "****************");
 
 
-    char *jobWeekNumStr = calloc(3, sizeof(char));
-
+    char *jobWeekNumStr = calloc(3, sizeof(char));  //make some space for the Job Date string that I'm going to check
     //Need to find the array index for any Job with the matching Work Week...
-    int recordsFound = 0;
-    for(size_t job = 0; job < numOfElements[1]; job++){
-        strftime(jobWeekNumStr, 3, "%W", localtime(&jobArray[job]->dueDate));
-        if(strcmp(jobWeekNumStr, searchWeekNumStr) <= 0){ //Match - due this week or Overdue!
-            recordsFound++;
+    int recordsFound = 0;   //A count of the records found
+    for(size_t job = 0; job < numOfElements[1]; job++){     //Iterate through the data structure
+        strftime(jobWeekNumStr, 3, "%W", localtime(&jobArray[job]->dueDate)); //Generate a searchable string for each job
+        //Match - due this week or Overdue!
+        if((strcmp(jobWeekNumStr, searchWeekNumStr) == 0) || jobArray[job]->dueDate < currentDateTime){
+            recordsFound++; //Match! Generate the display record...
             employeeDisplayName = getEmployeeName(employeeArray, numOfElements[0], jobArray[job]->empNumber);
 
-            if (jobArray[job]->completionDate == 0){
+            if (jobArray[job]->completionDate == 0){    //If the job is not yet complete...
                 if(jobArray[job]->dueDate < currentDateTime){
                     strcpy(engCompleteDate, "*** OVERDUE! ***");
                 }else {
                     strcpy(engCompleteDate, "In progress...");
-                }
+                }//End of if/else
             }else {
-                continue;
-            }
+                continue;   //If the job is already completed, just skip it.
+            }//End of if/else
 
             //Generate a readable date / time in the format "Thu Apr 20, 2017 @ 12:00"
             strftime(engDueDate, 20, "%b %d, %Y @%H:%M", localtime(&jobArray[job]->dueDate));
 
+            //display the record...
             printf("%6d  %-13s  %-17s%21s  %-16s\n", jobArray[job]->jobNumber, jobArray[job]->customerName,
                    employeeDisplayName, engDueDate, engCompleteDate);
+        }//End of if
+    }//End of for
 
-
-
-        }
-    }
     if(!recordsFound){ //If no records Found...
-        //char *engSearchDate = calloc(17, sizeof(char)); //"Thu Apr 20, 2017" + NULL
-        //strftime(engSearchDate, 17, "%a %b %d, %Y", localtime(&currentDateTime));
-
         puts("No Jobs Overdue or due for completion this week.\n");
-    }
+    }//End of if
+}//End of function displayUrgentJobs
 
-}
-
-void listJobsByEmployeeSpecial(Employee **employeeArray, Job **jobArray, size_t *numOfElements) {
+/**
+ * Function listJobsGroupedByEmployee
+ * This function list jobs by Employee and then by Due date
+ *
+ * @param employeeArray - The employee data structure
+ * @param jobArray - The job data structure
+ * @param numOfElements - An array holding the number of elements in each data structure
+ */
+void listJobsGroupedByEmployee(Employee **employeeArray, Job **jobArray, size_t *numOfElements) {
+    //Get the current time...
     time_t currentDateTime = time(NULL);
+
     char *employeeDisplayName;
     char *engDueDate = calloc(20, sizeof(char)); //"Apr 20, 2017 @12:00" + NULL
     char *engCompleteDate = calloc(17, sizeof(char)); //"Thu Apr 20, 2017" + NULL
 
-
+    //Output the headers
     printf("\n%6s%15s%19s%21s%18s\n", "Job  ", "Customer  ", "Employee    ", "Due          ", "Completed    ");
     printf("%6s%15s%19s%21s%18s\n", "Number", "Name    ", "Name      ", "Date and Time   ", "Date      ");
     printf("%6s%15s%19s%21s%18s\n", "******", "*************", "*****************", "*******************",
            "****************");
 
-    //Sort employeeArray so that it is in Name order...
-    employeeBubbleSort(employeeArray, numOfElements[0], 2);
-    //Sort jobArray by DueDate
-    jobBubbleSort(jobArray, numOfElements[1], 4);
-
-
-    size_t count = 0;
+    size_t recordCount = 0;
     //for each employee
-    for(size_t emp = 0; emp < numOfElements[0]; emp++){
-
-        for (size_t job = 0; job < numOfElements[1]; job++) {
-
-            //If match count++
+    for(size_t emp = 0; emp < numOfElements[0]; emp++){ //Iterate for each employee
+        for (size_t job = 0; job < numOfElements[1]; job++) {   //Check each job...
+            //If the employee number matches the employee number assigned to the job...
             if(employeeArray[emp]->number == jobArray[job]->empNumber){
-                count++;
+                recordCount++;
+                //Prepare the record for display...
                 employeeDisplayName = getEmployeeName(employeeArray, numOfElements[0], employeeArray[emp]->number);
 
                 if (jobArray[job]->completionDate == 0){
@@ -1635,11 +1658,13 @@ void listJobsByEmployeeSpecial(Employee **employeeArray, Job **jobArray, size_t 
                 //Generate a readable date / time in the format "Thu Apr 20, 2017 @ 12:00"
                 strftime(engDueDate, 20, "%b %d, %Y @%H:%M", localtime(&jobArray[job]->dueDate));
 
+                //Display the record
                 printf("%6d  %-13s  %-17s%21s  %-16s\n", jobArray[job]->jobNumber, jobArray[job]->customerName,
                        employeeDisplayName, engDueDate, engCompleteDate);
 
-                if(count != 0 && (count % 10 == 0)){
-                    puts("\nMore records to display...");
+                //Every 10 records, Print the headers again...
+                if(recordCount != 0 && (recordCount % 10 == 0)){
+                    puts("More records to display...");
                     pressEnterToContinue();
                     puts("");
 
@@ -1648,33 +1673,25 @@ void listJobsByEmployeeSpecial(Employee **employeeArray, Job **jobArray, size_t 
                     printf("%6s%15s%19s%21s%18s\n", "******", "*************", "*****************", "*******************",
                            "****************");
 
-                }
-
-            }
-
-        }
-
-    }
-
-}
+                }//End of if
+            }//End of if
+        }//End of inner for
+    }//End of outer for
+}//End of listJobsGroupedByEmployee
 
 /**
  * Function jobBubbleSort
- * This function sorts an array in Ascending order and reports performance statistics to the user
+ * This function sorts an array in Ascending order
  *
- * @param unsortedArray
- * @param numOfElements
- * @param sortType -    1 will sort by Job Number
+ * @param unsortedArray - The unsorted Job array
+ * @param arraySize - the number of elements in the job array
+ * @param sortType - The sorting mode...
+ *                      1 will sort by Job Number
  *                      2 will sort by Employee Number
  *                      3 will sort by Customer
  *                      4 will sort by Due Date
  */
 void jobBubbleSort(Job **unsortedArray, size_t arraySize, int sortType) {
-
-    //clock_t startTime = clock();    //Variable to hold the number of ticks at the start of this function
-    //unsigned int swapCount = 0;     //Counter to track the number of data item swaps required to complete this task.
-    //unsigned int comparisonCount = 0;   //Counter to track the number of data item comparisons required to complete this task.
-
     size_t pass;    //Passes counter
     size_t i;       //Comparisons counter
     Job *temp;     //Temporary location used to swap array elements
@@ -1694,8 +1711,6 @@ void jobBubbleSort(Job **unsortedArray, size_t arraySize, int sortType) {
                     // compare adjacent elements and swap them if first
                     // element is greater than second element
                     if (unsortedArray[i]->jobNumber > unsortedArray[i + 1]->jobNumber) {
-                        //For every swap, increment the swapCount counter
-                        //swapCount++;
 
                         //Do the Swap...
                         temp = unsortedArray[i];                    //Store item[i] in temp.
@@ -1711,8 +1726,6 @@ void jobBubbleSort(Job **unsortedArray, size_t arraySize, int sortType) {
                     // compare adjacent elements and swap them if first
                     // element is greater than second element
                     if (unsortedArray[i]->empNumber > unsortedArray[i + 1]->empNumber) {
-                        //For every swap, increment the swapCount counter
-                        //swapCount++;
 
                         //Do the Swap...
                         temp = unsortedArray[i];                    //Store item[i] in temp.
@@ -1727,8 +1740,7 @@ void jobBubbleSort(Job **unsortedArray, size_t arraySize, int sortType) {
                     // compare adjacent elements and swap them if first
                     // element is greater than second element
                     if (strcmp(unsortedArray[i]->customerName, unsortedArray[i + 1]->customerName) > 0) {
-                        //For every swap, increment the swapCount counter
-                        //swapCount++;
+
 
                         //Do the Swap...
                         temp = unsortedArray[i];                    //Store item[i] in temp.
@@ -1742,8 +1754,6 @@ void jobBubbleSort(Job **unsortedArray, size_t arraySize, int sortType) {
                     // compare adjacent elements and swap them if first
                     // element is greater than second element
                     if (unsortedArray[i]->dueDate > unsortedArray[i + 1]->dueDate) {
-                        //For every swap, increment the swapCount counter
-                        //swapCount++;
 
                         //Do the Swap...
                         temp = unsortedArray[i];                    //Store item[i] in temp.
@@ -1756,17 +1766,10 @@ void jobBubbleSort(Job **unsortedArray, size_t arraySize, int sortType) {
                 default:{
                     //Do nothing!
                 }
-            }
+            }//End of switch
         } // end inner for
     } // end outer for
-
-    //clock_t finishTime = clock();   //Variable to hold the number of ticks at the end of this function.
-
-    //Print statistics...
-    //printf("Bubble Sort completed after %f seconds,\n\t with %u data swaps and %u data comparisons.\n",
-    //       (double) (finishTime - startTime) / CLOCKS_PER_SEC, swapCount, comparisonCount);
-
-}//End of function employeeBubbleSort
+}//End of function jobBubbleSort
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 ///////////////////////////////
@@ -1776,11 +1779,14 @@ void jobBubbleSort(Job **unsortedArray, size_t arraySize, int sortType) {
 /**
  * Function generateEmployeeReportFile
  * This function is will product a report detailing the current Employees, sorted by name and output to a file.
+ * This function makes a copy of the Employee Pointers Array to do the sorting with...
+ *          ...though I don't see the benefit as I'm only sorting pointers.
+ *
  * @param employeeArrayCopy - The Employee data Structure
  * @param arraySize - The number of elements in the data Structure
  */
 void generateEmployeeReportFile(Employee **employeeArray, size_t arraySize){
-
+    //Allocate memory for an appropriate number of Employee pointers...
     Employee **employeeArrayCopy = calloc(arraySize, sizeof(Employee*));
     if (!employeeArrayCopy){
         puts("FATAL ERROR - Insufficient memory to Copy Employee Data. Cancelling...");
@@ -1793,7 +1799,7 @@ void generateEmployeeReportFile(Employee **employeeArray, size_t arraySize){
         //Sort the employeeArrayCopy pointers, in order of Employee name
         employeeBubbleSort(employeeArrayCopy, arraySize, 2);
 
-        /////////////////////////
+        //// Copy Complete ////
 
         FILE *outputFilePtr = NULL;//A pointer to my output file.
 
@@ -1801,8 +1807,9 @@ void generateEmployeeReportFile(Employee **employeeArray, size_t arraySize){
         time_t currentDateTime = time(NULL);
         char *employeeReportFile = calloc(8 + strlen(EMP_REPORT_FILE) + 1, sizeof(char)); //20170308 + EMP_REPORT_FILE + NULL char
         strftime(employeeReportFile, 9, "%Y%m%d", localtime(&currentDateTime));
-        strcat(employeeReportFile, EMP_REPORT_FILE);
+        strcat(employeeReportFile, EMP_REPORT_FILE);    //Complete the filename
 
+        //Full readable DateTime to include in the report...
         char *fullDateTime = calloc(50, sizeof(char));
         strftime(fullDateTime, 49, "%A, %B %d, %Y @ %I:%M%p", localtime(&currentDateTime));
 
@@ -1833,48 +1840,53 @@ void generateEmployeeReportFile(Employee **employeeArray, size_t arraySize){
                 strcat(displayName, employeeArrayCopy[index]->empFirstName);
                 fprintf(outputFilePtr, "\n%8u    %-20s", employeeArrayCopy[index]->number, displayName);
 
-            }
+            }//End for
 
         }//End of if / else
 
         fclose(outputFilePtr); //Close the file
 
-        printf("Complete!\nReport saved to '%s'\n", employeeReportFile);
-
+        printf("Complete!\n\nReport saved to '%s'\n", employeeReportFile);
 
     }//End of For (Allocating memory to Employee**
-}
+}//End of function generateEmployeeReportFile
 
 /**
- * Function generateEmployeeReportFile
+ * Function generateJobReportFile
  * This function is will product a report detailing the current Employees, sorted by name and output to a file.
+ * This function makes a copy of the Job Pointers Array to do the sorting with...
+ *          ...though I don't see the benefit as I'm only sorting pointers.
+ *
  * @param employeeArrayCopy - The Employee data Structure
  * @param numOfElements - The number of elements in the data Structure
  */
 void generateJobReportFile(Employee **employeeArray, Job **jobArray, size_t *numOfElements){
-
+    //Allocate memory for an appropriate number of Job pointers...
     Job **jobArrayCopy = calloc(numOfElements[1], sizeof(Job*));
     if (!jobArrayCopy){
-        puts("FATAL ERROR - Insufficient memory to Copy Employee Data. Cancelling...");
+        puts("FATAL ERROR - Insufficient memory to Copy Job Data. Cancelling...");
         //return;
     }else {
 
-        //Make a copy of the Employ Struct 'Pointers'
+        //Make a copy of the Job Struct 'Pointers'
         memcpy(jobArrayCopy, jobArray, numOfElements[1] * sizeof(Job*));
 
         //Sort the jobArrayCopy pointers, in order of Employee name
+        //This is a business decision..could sort by Job number or similar, but sorted by employee seems logical
+        //Could even include this as an extra parameter in the function, but unnecessary for this exercise
         jobBubbleSort(jobArrayCopy, numOfElements[1], 3);
 
         /////////////////////////
 
-        FILE *outputFilePtr = NULL;//A pointer to my output file.
+        FILE *outputFilePtr = NULL; //A pointer to my output file.
 
         //Generate a date / time prefix that I'll use as part of my output filename
         time_t currentDateTime = time(NULL);
         char *jobReportFile = calloc(8 + strlen(JOB_REPORT_FILE) + 1, sizeof(char)); //20170308 + JOB_REPORT_FILE + NULL char
         strftime(jobReportFile, 9, "%Y%m%d", localtime(&currentDateTime));
-        strcat(jobReportFile, JOB_REPORT_FILE);
+        strcat(jobReportFile, JOB_REPORT_FILE); //Complete the filename
 
+        //Full readable DateTime to include in the report...
         char *fullDateTime = calloc(50, sizeof(char));
         strftime(fullDateTime, 49, "%A, %B %d, %Y @ %I:%M%p", localtime(&currentDateTime));
 
@@ -1906,41 +1918,35 @@ void generateJobReportFile(Employee **employeeArray, Job **jobArray, size_t *num
 
 
             for (index = 0; index < numOfElements[1]; index++) {   //Iterate for each Job record...
+                //Prepare the record...
                 if (jobArray[index]->completionDate == 0){
                     if(jobArray[index]->dueDate < currentDateTime){
                         strcpy(engCompleteDate, "*** OVERDUE! ***");
                     }else {
                         strcpy(engCompleteDate, "In progress...");
-                    }
+                    }//End if/else
                 }else {
                     //Generate a readable date / time in the format "Thu Apr 20, 2017 @ 12:00"
                     strftime(engCompleteDate, 18, "%a %b %d, %Y", localtime(&jobArray[index]->completionDate));
-                }
+                }//End if/else
 
                     employeeDisplayName = getEmployeeName(employeeArray, numOfElements[0], jobArray[index]->empNumber);
 
                     //Generate a readable date / time in the format "Thu Apr 20, 2017 @ 12:00"
                     strftime(engDueDate, 26, "%b %d, %Y @%H:%M", localtime(&jobArray[index]->dueDate));
 
-
-                    fprintf(outputFilePtr, "\n%6d  %-13s  %-17s%21s  %-16s", jobArray[index]->jobNumber, jobArray[index]->customerName,
-                           employeeDisplayName, engDueDate, engCompleteDate);
-
-
-            }
-
+                    //Output the record to the report...
+                    fprintf(outputFilePtr, "\n%6d  %-13s  %-17s%21s  %-16s", jobArray[index]->jobNumber,
+                            jobArray[index]->customerName, employeeDisplayName, engDueDate, engCompleteDate);
+            }//End of for
         }//End of if / else
 
         fclose(outputFilePtr); //Close the file
 
         printf("Complete!\nReport saved to '%s'\n", jobReportFile);
-
-
-    }//End of For (Allocating memory to Employee**
-}
-
-
-
+    }//End of if/else - Memory allocation
+}//End of function generateJobReportFile
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 ///////////////////////////////
 //// Utility Functions... ////
@@ -1949,6 +1955,7 @@ void generateJobReportFile(Employee **employeeArray, Job **jobArray, size_t *num
  * Function getDateTimeFromUser
  * This function asks the users for the year, month, day, hour and half-hour, and returns an appropriate time_t representation.
  *
+ * @param wantTime - A bool controlling whether or not to get 'time' information from the user or not.
  * @return - a time_t representation of the user input date and time.
  */
 time_t getDateTimeFromUser(int wantTime) {
@@ -1957,25 +1964,28 @@ time_t getDateTimeFromUser(int wantTime) {
     //Get Due Day
     //Get Due Hour
     //Get Due Minute (in 30min chunks)
+
+    //Array of month names to use for error messages
     char *month[] = {"Spacer", "January", "February", "March", "April", "May", "June",
                      "July", "August", "September", "October", "November", "December"};
 
-    time_t proposedDateTime = 0;
+    time_t proposedDateTime = 0;    //A variable that will hold the proposed user date
 
     //Resolve Year
     int proposedYear = 0;
+    //Keep doing this... ...until I have a valid year...
     do {
         printf("%s", "Year (YYYY) :");
         scanf("%d", &proposedYear);
         while (fgetc(stdin) != '\n'); //Clear whatever is left of the stdin buffer
-        if (proposedYear < 1900 || proposedYear > 2037) {
+        if (proposedYear < 2017 || proposedYear > 2037) {   //Could consider auto populating the current year?
             puts("This year is out of range!");
-        }
-
-    } while (proposedYear < 1900 || proposedYear > 2037);
+        }//End if
+    } while (proposedYear < 2017 || proposedYear > 2037);
 
     //Resolve Month
     int proposedMonth = -1;
+    //Keep doing this... ...until I have a valid month...
     do {
         printf("%s", "Month (1 - 12) :");
         scanf("%d", &proposedMonth);
@@ -1987,9 +1997,11 @@ time_t getDateTimeFromUser(int wantTime) {
 
     //Resolve Day
     int proposedDay = -1;
+    //Set the Max day with the following nested conditional statement and using the accepted year and month values...
     int validMaxDay = (proposedMonth == 2 ?
                        (proposedYear % 4 ? 28 : (proposedYear % 100 ? 29 : (proposedYear % 400 ? 28 : 29))) :
                        ((proposedMonth - 1) % 7 % 2 ? 30 : 31)); //From Week2 Discussion! :)
+    //Keep doing this... ...until I have a valid day...
     do {
         printf("Day (1 - %d) :", validMaxDay);
         scanf("%d", &proposedDay);
@@ -2002,11 +2014,11 @@ time_t getDateTimeFromUser(int wantTime) {
                        proposedYear, proposedDay);
             }else{  //Any other month
                 printf("The month of %s, does not have %d days!\n", month[proposedMonth], proposedDay);
-            }
-        }
+            }//End of if/else
+        }//End of if/else
     } while (proposedDay < 1 || proposedDay > validMaxDay);
 
-
+    //Start building my tm struct...
     struct tm proposedTimeStruct;
     proposedTimeStruct.tm_year = proposedYear - 1900;
     proposedTimeStruct.tm_mon = proposedMonth - 1; //April
@@ -2017,9 +2029,11 @@ time_t getDateTimeFromUser(int wantTime) {
     proposedTimeStruct.tm_wday = -1;
     proposedTimeStruct.tm_yday = -1;
 
+    //Do I want to add the 'time' components...
     if(wantTime) {
         //Resolve Hour
         int proposedHour = -1;
+        //Keep doing this... ...until I have a valid hour...
         do {
             printf("%s", "Hour (0 - 23) :");
             scanf("%d", &proposedHour);
@@ -2031,6 +2045,7 @@ time_t getDateTimeFromUser(int wantTime) {
 
         //Resolve Minute
         int proposedMinute = -1;
+        //Keep doing this... ...until I have a valid minute...
         do {
             printf("%s", "Minute - Half hour interval(0 or 30) :");
             scanf("%d", &proposedMinute);
@@ -2040,17 +2055,18 @@ time_t getDateTimeFromUser(int wantTime) {
             }
         } while (proposedMinute != 0 && proposedMinute != 30);
 
+        //Finish off my struct with the 'time' information...
         proposedTimeStruct.tm_hour = proposedHour;
         proposedTimeStruct.tm_min = proposedMinute;
 
-    }else{
+    }else{ //No time information required from the user...
+        //Finish off my struct with default 'time' information...
         proposedTimeStruct.tm_hour = 0;
         proposedTimeStruct.tm_min = 0;
 
-    }
+    }//End of if/else
 
-
-
+    //Build a time_t value from my constructed struct...
     proposedDateTime = mktime(&proposedTimeStruct);
 
     return proposedDateTime;
@@ -2060,6 +2076,8 @@ time_t getDateTimeFromUser(int wantTime) {
 /**
  * Function clrscr
  * This function simply clears the content of the console window
+ * Only works on Windows.
+ *
  */
 void clrscr(){
     system("@cls||clear");
